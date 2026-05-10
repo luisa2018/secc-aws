@@ -6,20 +6,46 @@ Description: >
 
 Globals:
   Function:
-    Timeout: 30
     Runtime: python3.11
     Architectures:
       - x86_64
 
 Resources:
+
   MCPServerFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/mcp_server/
       Handler: handler.lambda_handler
+      Timeout: 30
       Description: MCP Server que implementa protocolo JSON-RPC 2.0
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action:
+              - pricing:GetProducts
+              - pricing:DescribeServices
+            Resource: "*"
+
+  EstimacionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/estimacion/
+      Handler: handler.lambda_handler
+      Timeout: 60
+      Description: Servicio de Estimación de costos AWS
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+              - lambda:InvokeFunction
+            Resource: "*"
 
 Outputs:
   MCPServerFunction:
     Description: "MCP Server Lambda Function ARN"
     Value: !GetAtt MCPServerFunction.Arn
+  EstimacionFunction:
+    Description: "Estimacion Lambda Function ARN"
+    Value: !GetAtt EstimacionFunction.Arn
