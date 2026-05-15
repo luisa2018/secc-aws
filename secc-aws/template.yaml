@@ -9,6 +9,11 @@ Globals:
     Runtime: python3.11
     Architectures:
       - x86_64
+  Api:
+    Cors:
+      AllowMethods: "'POST,OPTIONS'"
+      AllowHeaders: "'Content-Type'"
+      AllowOrigin: "'*'"
 
 Resources:
 
@@ -41,8 +46,17 @@ Resources:
               - bedrock:InvokeModel
               - lambda:InvokeFunction
             Resource: "*"
+      Events:
+        EstimateApi:
+          Type: Api
+          Properties:
+            Path: /estimate
+            Method: post
 
 Outputs:
+  EstimacionApi:
+    Description: "URL del endpoint POST /estimate"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/estimate"
   MCPServerFunction:
     Description: "MCP Server Lambda Function ARN"
     Value: !GetAtt MCPServerFunction.Arn

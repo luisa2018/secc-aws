@@ -1,0 +1,3 @@
+{
+  "body": "{\"contexto_evaluacion\": {\"estilo_arquitectura\": \"monolitica\", \"horizonte_tiempo\": \"mensual\", \"presupuesto\": 500, \"ambiente\": \"desarrollo\", \"ubicacion_usuarios\": \"latinoamerica\"}, \"arquitectura\": {\"patron_despliegue\": \"VMs\", \"numero_servicios\": \"1\", \"usuarios_concurrentes\": \"100-1K\", \"tipo_base_datos\": \"relacional\", \"volumen_datos_inicial\": \"1-100 GB\", \"intensidad_procesamiento\": \"ligera\", \"cumplimiento\": \"ninguno\", \"transferencia_mensual\": \"10-500 GB\", \"sla_objetivo\": \">99%\", \"ia_ml\": \"ninguno\", \"almacenamiento_archivos\": \"<100 GB\"}}"
+}
