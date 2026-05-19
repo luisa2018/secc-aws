@@ -1,10 +1,14 @@
 import json
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../bedrock'))
-from bedrock_service import proponer_arquitectura
-from rule_engine import validar_servicios
+import datetime
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../bedrock'))
+from bedrock_service import generar_informe
+
+# ---------------------------------------------------------------------------
+# Configuración
+# ---------------------------------------------------------------------------
 REGION_MAP = {
     "latinoamerica": "us-east-1",
     "estados_unidos": "us-east-1",
@@ -46,6 +50,8 @@ MULTIPLICADOR_TIEMPO = {
     "anual":      12
 }
 
+MCP_URL = os.environ.get("MCP_URL", "http://localhost:5000/mcp")
+
 
 def lambda_handler(event, context):
     try:
@@ -55,37 +61,35 @@ def lambda_handler(event, context):
         if errores:
             return response(400, {"error": "Datos de entrada inválidos", "detalle": errores})
 
-        contexto = body.get("contexto_evaluacion", {})
+        contexto     = body.get("contexto_evaluacion", {})
         arquitectura = body.get("arquitectura", {})
 
-        estilo = contexto.get("estilo_arquitectura", "")
-        ubicacion = contexto.get("ubicacion_usuarios", "")
+        estilo    = contexto.get("estilo_arquitectura", "")
         horizonte = contexto.get("horizonte_tiempo", "mensual")
-        region_aws = REGION_MAP.get(ubicacion, "us-east-1")
         inferidos = INFERIDOS_POR_ESCENARIO.get(estilo, {})
 
-        # Paso 1: LLM - proponer arquitectura
-        servicios_llm = proponer_arquitectura(contexto, arquitectura, region_aws, horizonte, inferidos)
-        print("Servicios LLM:", servicios_llm)
+        # Strands Agent ejecuta ciclo completo de razonamiento
+        informe = generar_informe(
+            contexto, arquitectura, horizonte, inferidos
+        )
 
-        # Paso 2: Validar servicios
-        servicios_validos, decision_log = validar_servicios(servicios_llm, contexto, arquitectura, inferidos)
-        print("Servicios validados:", servicios_validos)
-        print("Decision log:", decision_log)
-
-        # TODO EST-03: consultar AWS Pricing
-        # TODO EST-04: Prompt 2 - justificaciones
-        # TODO EST-05: response final
-
-        return response(202, {"mensaje": "Estimación en proceso - flujo incompleto"})
+        return response(200, {
+            "metadata": {
+                "escenario":       estilo,
+                "fecha_ejecucion": datetime.datetime.utcnow().isoformat()
+            },
+            **informe
+        })
 
     except Exception as e:
         return response(500, {"error": f"Error interno: {str(e)}"})
 
-
+# ---------------------------------------------------------------------------
+# Validación de entrada
+# ---------------------------------------------------------------------------
 def validar_entrada(body):
     errores = []
-    contexto = body.get("contexto_evaluacion", {})
+    contexto     = body.get("contexto_evaluacion", {})
     arquitectura = body.get("arquitectura", {})
 
     if not contexto.get("estilo_arquitectura"):
@@ -123,6 +127,9 @@ def validar_entrada(body):
     return errores
 
 
+# ---------------------------------------------------------------------------
+# Helper response
+# ---------------------------------------------------------------------------
 def response(status_code, body):
     return {
         "statusCode": status_code,
