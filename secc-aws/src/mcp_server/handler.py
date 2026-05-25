@@ -1,11 +1,8 @@
 import json
 import boto3
-import sys
-import os
 from botocore.exceptions import ClientError
 from fastmcp import FastMCP
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../estimacion'))
 from rule_engine import AWS_COST_SERVICES
 
 mcp = FastMCP("SECC-AWS MCP Server")
@@ -14,15 +11,16 @@ pricing_client = boto3.client('pricing', region_name='us-east-1')
 
 FILTROS_POR_SERVICIO = {
     "AmazonEC2": [
-    {"field": "operatingSystem", "value": "Linux"},
-    {"field": "tenancy",         "value": "Shared"},
-    {"field": "capacitystatus",  "value": "Used"},
-    {"field": "preInstalledSw",  "value": "NA"},
-    {"field": "instanceType",    "value": "m5.xlarge"},
+        {"field": "operatingSystem", "value": "Linux"},
+        {"field": "tenancy",         "value": "Shared"},
+        {"field": "capacitystatus",  "value": "Used"},
+        {"field": "preInstalledSw",  "value": "NA"},
+        {"field": "instanceType",    "value": "m5.xlarge"},
     ],
     "AmazonRDS": [
         {"field": "databaseEngine",  "value": "MySQL"},
         {"field": "deploymentOption","value": "Single-AZ"},
+        {"field": "instanceType",    "value": "db.t3.medium"},
     ],
     "AmazonEBS": [
         {"field": "volumeApiName",   "value": "gp3"},

@@ -1,21 +1,12 @@
 import json
-import sys
 import os
 import datetime
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../bedrock'))
 from bedrock_service import generar_informe
 
 # ---------------------------------------------------------------------------
 # Configuración
 # ---------------------------------------------------------------------------
-REGION_MAP = {
-    "latinoamerica": "us-east-1",
-    "estados_unidos": "us-east-1",
-    "europa":         "eu-west-1",
-    "global":         "us-east-1"
-}
-
 INFERIDOS_POR_ESCENARIO = {
     "monolitica": {
         "multi_az": False, "backups": True, "auto_scaling": False,
@@ -30,7 +21,7 @@ INFERIDOS_POR_ESCENARIO = {
     "serverless": {
         "multi_az": False, "backups": False, "auto_scaling": True,
         "cdn": True, "monitoreo": True, "expone_api_publica": True,
-        "red_privada": False, "salida_internet": True, "tipo_aplicacion": "api"
+        "red_privada": False, "salida_internet": False, "tipo_aplicacion": "api"
     },
     "event_driven": {
         "multi_az": True, "backups": True, "auto_scaling": True,
@@ -50,8 +41,6 @@ MULTIPLICADOR_TIEMPO = {
     "anual":      12
 }
 
-MCP_URL = os.environ.get("MCP_URL", "http://localhost:5000/mcp")
-
 
 def lambda_handler(event, context):
     try:
@@ -59,7 +48,7 @@ def lambda_handler(event, context):
 
         errores = validar_entrada(body)
         if errores:
-            return response(400, {"error": "Datos de entrada inválidos", "detalle": errores})
+            return response(400, {"error": "Datos de entrada invalidos", "detalle": errores})
 
         contexto     = body.get("contexto_evaluacion", {})
         arquitectura = body.get("arquitectura", {})
@@ -68,7 +57,6 @@ def lambda_handler(event, context):
         horizonte = contexto.get("horizonte_tiempo", "mensual")
         inferidos = INFERIDOS_POR_ESCENARIO.get(estilo, {})
 
-        # Strands Agent ejecuta ciclo completo de razonamiento
         informe = generar_informe(
             contexto, arquitectura, horizonte, inferidos
         )
@@ -83,6 +71,7 @@ def lambda_handler(event, context):
 
     except Exception as e:
         return response(500, {"error": f"Error interno: {str(e)}"})
+
 
 # ---------------------------------------------------------------------------
 # Validación de entrada
@@ -113,6 +102,9 @@ def validar_entrada(body):
 
     if not contexto.get("ia_tipo"):
         errores.append("ia_tipo es requerido")
+
+    if not contexto.get("plazo_compromiso"):
+        errores.append("plazo_compromiso es requerido")
 
     campos_arquitectura = [
         "patron_despliegue", "usuarios_concurrentes",
