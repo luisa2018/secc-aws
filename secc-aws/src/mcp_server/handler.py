@@ -204,7 +204,7 @@ def list_supported_services() -> dict:
 
 def lambda_handler(event, context):
     """Entry point para AWS Lambda"""
-    return mcp.handle_request(event, context)
+    return mcp.run(transport="lambda")
 
 
 if __name__ == "__main__":
