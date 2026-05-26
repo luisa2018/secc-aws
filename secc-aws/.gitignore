@@ -242,3 +242,17 @@ $RECYCLE.BIN/
 */build/*
 
 # End of https://www.gitignore.io/api/osx,linux,python,windows,pycharm,visualstudiocode
+
+# SAM build artifacts
+.aws-sam/
+
+# ZIP files
+*.zip
+
+# Dependencias instaladas manualmente
+src/estimacion/packages/
+
+# Variables de entorno
+.env
+.env.production
+.env.local
