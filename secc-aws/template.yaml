@@ -52,7 +52,7 @@ Resources:
       Description: Servicio de Estimacion de costos AWS
       Environment:
         Variables:
-          MCP_URL: !GetAtt MCPServerFunctionUrl.FunctionUrl
+          MCP_URL: !Sub "${MCPServerFunctionUrl.FunctionUrl}mcp"
       Policies:
         - Statement:
             Effect: Allow
