@@ -64,13 +64,18 @@ Resources:
               - bedrock-agentcore:StopCodeInterpreterSession
               - lambda:InvokeFunction
               - lambda:InvokeFunctionUrl
+              - pricing:GetProducts
+              - pricing:DescribeServices
             Resource: "*"
-      Events:
-        EstimateApi:
-          Type: Api
-          Properties:
-            Path: /estimate
-            Method: post
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - "*"
+          AllowMethods:
+            - POST
+          AllowHeaders:
+            - "*"
 
   ReporteFunction:
     Type: AWS::Serverless::Function
@@ -87,9 +92,9 @@ Resources:
             Method: post
 
 Outputs:
-  EstimacionApi:
-    Description: "URL del endpoint POST /estimate"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/estimate"
+  EstimacionFunctionUrl:
+    Description: "URL directa del endpoint de estimacion"
+    Value: !GetAtt EstimacionFunctionUrl.FunctionUrl
   ReporteApi:
     Description: "URL del endpoint POST /report"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/report"
