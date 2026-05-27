@@ -240,12 +240,12 @@ async def _ejecutar_agente(contexto, arquitectura, horizonte, inferidos):
     )
 
     with mcp_client:
+        tools = mcp_client.list_tools_sync()
         agent = Agent(
             model=BEDROCK_MODEL_ID,
             system_prompt=SYSTEM_PROMPT,
-            tools=[mcp_client, execute_cost_calculation]
+            tools=[*tools, execute_cost_calculation]
         )
-
         respuesta = await agent.invoke_async(prompt_usuario)
         texto = str(respuesta).strip()
 
