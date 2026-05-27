@@ -1,11 +1,11 @@
 import json
 import boto3
 from botocore.exceptions import ClientError
-from fastmcp import FastMCP
+from awslabs.mcp_lambda_handler import MCPLambdaHandler
 
 from rule_engine import AWS_COST_SERVICES
 
-mcp = FastMCP("SECC-AWS MCP Server", stateless_http=True)
+mcp = MCPLambdaHandler(name="SECC-AWS MCP Server", version="1.0.0")
 
 pricing_client = boto3.client('pricing', region_name='us-east-1')
 
@@ -204,8 +204,4 @@ def list_supported_services() -> dict:
 
 def lambda_handler(event, context):
     """Entry point para AWS Lambda"""
-    return mcp.handle_lambda_event(event, context)
-
-
-if __name__ == "__main__":
-    mcp.run(transport="streamable-http", host="127.0.0.1", port=5001)
+    return mcp.handle_request(event, context)
