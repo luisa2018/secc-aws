@@ -2,11 +2,10 @@ import json
 import boto3
 from botocore.exceptions import ClientError
 from fastmcp import FastMCP
-from mangum import Mangum
 
 from rule_engine import AWS_COST_SERVICES
 
-mcp = FastMCP("SECC-AWS MCP Server")
+mcp = FastMCP("SECC-AWS MCP Server", stateless_http=True)
 
 pricing_client = boto3.client('pricing', region_name='us-east-1')
 
@@ -205,9 +204,7 @@ def list_supported_services() -> dict:
 
 def lambda_handler(event, context):
     """Entry point para AWS Lambda"""
-    asgi_app = mcp._get_asgi_app()
-    handler = Mangum(asgi_app)
-    return handler(event, context)
+    return mcp.handle_lambda_event(event, context)
 
 
 if __name__ == "__main__":
