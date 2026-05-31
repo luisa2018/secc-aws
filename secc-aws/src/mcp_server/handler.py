@@ -204,4 +204,22 @@ def list_supported_services() -> dict:
 
 def lambda_handler(event, context):
     """Entry point para AWS Lambda"""
+    # Manejar requests sin body (GET, OPTIONS, health checks)
+    http_method = (
+        event.get('requestContext', {}).get('http', {}).get('method', '')
+        or event.get('httpMethod', '')
+    )
+
+    if http_method in ('GET', 'OPTIONS') or 'body' not in event or event.get('body') is None:
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+                'Access-Control-Allow-Headers': '*'
+            },
+            'body': json.dumps({'status': 'ok'})
+        }
+
     return mcp.handle_request(event, context)
