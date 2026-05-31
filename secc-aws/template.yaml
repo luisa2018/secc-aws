@@ -24,7 +24,7 @@ Resources:
     Properties:
       CodeUri: src/mcp_server/
       Handler: handler.lambda_handler
-      Timeout: 30
+      Timeout: 120
       Description: MCP Server que implementa protocolo JSON-RPC 2.0
       Policies:
         - Statement:
@@ -82,7 +82,7 @@ Resources:
     Properties:
       CodeUri: src/reporte/
       Handler: handler.lambda_handler
-      Timeout: 30
+      Timeout: 60
       Description: Servicio de generacion de informes PDF
       Events:
         ReportApi:
