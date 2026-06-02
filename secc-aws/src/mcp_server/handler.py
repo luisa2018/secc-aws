@@ -188,6 +188,13 @@ def consultar_precio_servicio(service_code, location_name):
 @mcp.tool()
 def get_aws_pricing(servicios: list, region: str = "us-east-1") -> dict:
     """Consulta el precio unitario de una lista de servicios AWS en AWS Pricing API"""
+    # Validar que servicios sea una lista — si llega como string convertirlo
+    if isinstance(servicios, str):
+        try:
+            servicios = json.loads(servicios)
+        except Exception:
+            servicios = [s.strip() for s in servicios.split(',') if s.strip()]
+
     location_name = REGION_NAMES.get(region, "US East (N. Virginia)")
     precios = [consultar_precio_servicio(s, location_name) for s in servicios]
     return {

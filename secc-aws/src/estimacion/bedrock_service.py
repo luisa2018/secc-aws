@@ -110,19 +110,35 @@ REGLAS PARA EL INFORME:
   Cost Explorer y orientar al usuario sobre cuáles de los servicios
   propuestos generan costo por uso versus costo fijo mensual, para
   que sepa qué vigilar en su factura.
+- El campo presupuesto debe usarse EXACTAMENTE como lo ingresó el
+  usuario, sin redondear ni modificar. Si el usuario ingresó 500,
+  usa 500. Si ingresó 5000, usa 5000.
 
 REGLAS DE LICENCIAMIENTO:
 - Asume siempre Linux como sistema operativo y MySQL/PostgreSQL como
   motor de base de datos relacional, ya que no generan costo de licencia.
   Estos son los valores base del estimado total.
-- En el campo region_recomendada incluye adicionalmente:
-  * motor_recomendado: el motor de base de datos más adecuado para el
-    escenario con una justificación técnica breve.
-  * referencia_licenciamiento: objeto con los costos adicionales
-    mensuales estimados si el usuario optara por software propietario.
-    Incluye siempre: costo_sqlserver_usd, costo_oracle_usd y
-    costo_windows_server_usd. Estos valores NO están incluidos en el
-    estimado total — son solo referencias informativas.
+- El campo region_recomendada DEBE incluir SIEMPRE los siguientes
+  campos adicionales, sin excepción:
+  * motor_recomendado: string con el motor de base de datos más
+    adecuado para el escenario (ej: "PostgreSQL", "MySQL", "DynamoDB").
+    Si no hay base de datos en el escenario usa "N/A".
+  * justificacion_motor: string con justificación técnica breve de
+    por qué ese motor es el más adecuado para el escenario.
+    Si no hay base de datos usa "No aplica para este escenario".
+  * referencia_licenciamiento: objeto con costos adicionales mensuales
+    estimados si el usuario optara por software propietario en lugar
+    del open source asumido. SIEMPRE incluye los tres campos:
+    - nota: "Estos costos NO están incluidos en el estimado. Son
+      referencias informativas si se opta por software propietario."
+    - costo_sqlserver_usd: número con el costo adicional mensual
+      estimado de usar SQL Server en RDS en lugar de PostgreSQL/MySQL.
+      Si no hay RDS en el escenario usa 0.
+    - costo_oracle_usd: número con el costo adicional mensual estimado
+      de usar Oracle en RDS. Si no hay RDS usa 0.
+    - costo_windows_server_usd: número con el costo adicional mensual
+      estimado de usar Windows Server en EC2 en lugar de Linux.
+      Si no hay EC2 usa 0.
 
 IMPORTANTE: Responde ÚNICAMENTE con el siguiente JSON.
 Sin explicaciones, sin markdown, sin texto adicional. Solo el JSON:

@@ -21,16 +21,24 @@ def fmt_pct(valor):
 def limpiar(texto):
     if not isinstance(texto, str):
         texto = str(texto)
+    # Solo reemplazar caracteres que latin-1 NO soporta
     reemplazos = {
-        '\u2014': '-', '\u2013': '-', '\u2018': "'", '\u2019': "'",
-        '\u201c': '"', '\u201d': '"', '\u2022': '-', '\u00b7': '-',
-        '\u2026': '...', '\u00e9': 'e', '\u00f3': 'o', '\u00fa': 'u',
-        '\u00ed': 'i', '\u00e1': 'a', '\u00f1': 'n', '\u00fc': 'u',
-        '\u00e0': 'a', '\u00e8': 'e', '\u00ec': 'i', '\u00f2': 'o',
-        '\u00f9': 'u',
+        '\u2014': '-',    # guion largo
+        '\u2013': '-',    # guion medio
+        '\u2018': "'",    # comilla izquierda
+        '\u2019': "'",    # comilla derecha
+        '\u201c': '"',    # comilla doble izquierda
+        '\u201d': '"',    # comilla doble derecha
+        '\u2022': '-',    # bullet
+        '\u00b7': '-',    # punto medio
+        '\u2026': '...',  # elipsis
+        '\u2192': '->',   # flecha derecha
+        '\u00bb': '>>',   # comilla angular derecha
+        '\u00ab': '<<',   # comilla angular izquierda
     }
     for car, rep in reemplazos.items():
         texto = texto.replace(car, rep)
+    # Convertir a latin-1 preservando á, é, í, ó, ú, ñ, ü
     texto = texto.encode('latin-1', errors='replace').decode('latin-1')
     return texto
 
@@ -143,7 +151,7 @@ def generar_pdf(data: dict) -> bytes:
     pdf.ln(4)
 
     # Metricas principales
-    pdf.titulo_seccion('Metricas principales')
+    pdf.titulo_seccion('Métricas principales')
     y0 = pdf.get_y()
     bw = 31
     x0 = 10
@@ -172,7 +180,7 @@ def generar_pdf(data: dict) -> bytes:
         pdf.set_font('Helvetica', 'B', 9)
         pdf.set_text_color(*InformePDF.DORADO)
         pdf.cell(0, 6, limpiar(f"#{i+1}  {s.get('servicio_aws','')}"), ln=True)
-        pdf.kv('  Configuracion', s.get('configuracion_minima', ''))
+        pdf.kv('  Configuración', s.get('configuracion_minima', ''))
         pdf.kv('  Costo mensual', fmt_usd(s.get('costo_mensual', 0)), InformePDF.VERDE)
         pdf.kv('  % del total',   fmt_pct(s.get('porcentaje_del_total', 0)))
         pdf.ln(1)
@@ -186,15 +194,15 @@ def generar_pdf(data: dict) -> bytes:
         fill_color = InformePDF.FONDO if i % 2 == 0 else InformePDF.BLANCO
         pdf.set_fill_color(*fill_color)
         pdf.cell(0, 7, limpiar(f"  {s.get('servicio_aws', '')}"), ln=True, fill=True)
-        pdf.kv('  Configuracion',  s.get('configuracion_minima', ''))
-        pdf.kv('  Justificacion',  s.get('justificacion', ''))
+        pdf.kv('  Configuración',  s.get('configuracion_minima', ''))
+        pdf.kv('  Justificación',  s.get('justificacion', ''))
         precio_str = f"${s.get('precio_unitario', 0):.4f} / {limpiar(s.get('unidad', ''))}"
         pdf.kv('  Precio unitario', precio_str)
         pdf.kv('  Costo mensual',   fmt_usd(s.get('costo_mensual', 0)), InformePDF.VERDE)
         pdf.ln(2)
 
     # Well-Architected
-    pdf.titulo_seccion('AWS Well-Architected - Optimizacion de costos')
+    pdf.titulo_seccion('AWS Well-Architected - Optimización de costos')
     costo_m    = float(costo_est.get('costo_mensual', 0))
     ahorro     = float(well.get('ahorro_estimado_usd', 0))
     optimizado = costo_m - ahorro
@@ -204,8 +212,8 @@ def generar_pdf(data: dict) -> bytes:
     pdf.metrica_box(71,  y0, bw, 14, 'Costo optimizado', fmt_usd(optimizado))
     pdf.metrica_box(132, y0, bw, 14, 'Ahorro estimado',  fmt_usd(ahorro), InformePDF.VERDE)
     pdf.ln(18)
-    pdf.kv('Evaluacion',    well.get('evaluacion', ''))
-    pdf.kv('Recomendacion', well.get('recomendacion', ''))
+    pdf.kv('Evaluación',    well.get('evaluacion', ''))
+    pdf.kv('Recomendación', well.get('recomendacion', ''))
 
     # Modelo de pricing
     pdf.titulo_seccion('Modelo de pricing recomendado')
@@ -214,14 +222,52 @@ def generar_pdf(data: dict) -> bytes:
         pdf.set_font('Helvetica', 'B', 9)
         pdf.set_text_color(*InformePDF.DORADO)
         pdf.cell(0, 6, limpiar(f"  {p.get('servicio_aws', '')}"), ln=True)
-        pdf.kv('  Modelo',        p.get('modelo_recomendado', ''))
-        pdf.kv('  Justificacion', p.get('justificacion', ''))
+        pdf.kv('  Modelo',         p.get('modelo_recomendado', ''))
+        pdf.kv('  Justificación',  p.get('justificacion', ''))
         pdf.ln(1)
 
-    # Region recomendada
-    pdf.titulo_seccion('Region recomendada')
-    pdf.kv('Region',        region.get('region', ''))
-    pdf.kv('Justificacion', region.get('justificacion', ''))
+    # Region recomendada + Motor + Licenciamiento
+    pdf.titulo_seccion('Región recomendada')
+    pdf.kv('Región',        region.get('region', ''))
+    pdf.kv('Justificación', region.get('justificacion', ''))
+
+    if region.get('motor_recomendado') and region.get('motor_recomendado') != 'N/A':
+        pdf.ln(2)
+        pdf.set_x(10)
+        pdf.set_font('Helvetica', 'B', 9)
+        pdf.set_text_color(*InformePDF.VERDE)
+        pdf.cell(0, 6, 'Motor de base de datos recomendado:', ln=True)
+        pdf.kv('  Motor',          region.get('motor_recomendado', ''), InformePDF.VERDE)
+        pdf.kv('  Justificación',  region.get('justificacion_motor', ''))
+
+    ref_lic = region.get('referencia_licenciamiento', {})
+    if ref_lic and any([
+        ref_lic.get('costo_sqlserver_usd', 0),
+        ref_lic.get('costo_oracle_usd', 0),
+        ref_lic.get('costo_windows_server_usd', 0)
+    ]):
+        pdf.ln(2)
+        pdf.set_x(10)
+        pdf.set_font('Helvetica', 'B', 9)
+        pdf.set_text_color(*InformePDF.DORADO)
+        pdf.cell(0, 6, 'Referencia de licenciamiento (no incluido en el estimado):', ln=True)
+        pdf.set_x(10)
+        pdf.set_font('Helvetica', 'I', 8)
+        pdf.set_text_color(*InformePDF.GRIS)
+        pdf.multi_cell(0, 5, limpiar(ref_lic.get('nota', '')))
+        pdf.ln(1)
+        if ref_lic.get('costo_sqlserver_usd', 0):
+            pdf.kv('  SQL Server en RDS',
+                   f"+{fmt_usd(ref_lic.get('costo_sqlserver_usd', 0))}/mes",
+                   InformePDF.ROJO)
+        if ref_lic.get('costo_oracle_usd', 0):
+            pdf.kv('  Oracle en RDS',
+                   f"+{fmt_usd(ref_lic.get('costo_oracle_usd', 0))}/mes",
+                   InformePDF.ROJO)
+        if ref_lic.get('costo_windows_server_usd', 0):
+            pdf.kv('  Windows Server en EC2',
+                   f"+{fmt_usd(ref_lic.get('costo_windows_server_usd', 0))}/mes",
+                   InformePDF.ROJO)
 
     # Alternativa de menor costo
     if alt.get('aplica'):
@@ -231,13 +277,13 @@ def generar_pdf(data: dict) -> bytes:
 
     # Analisis de migracion
     if migracion.get('aplica'):
-        pdf.titulo_seccion('Analisis de migracion')
+        pdf.titulo_seccion('Análisis de migración')
         pdf.kv('Costo actual (on-premise)', fmt_usd(migracion.get('costo_actual_estimado_usd', 0)))
         pdf.kv('Ahorro mensual estimado',   fmt_usd(migracion.get('ahorro_mensual_estimado_usd', 0)), InformePDF.VERDE)
-        pdf.kv('Periodo de retorno',        migracion.get('periodo_retorno_inversion', ''))
+        pdf.kv('Período de retorno',        migracion.get('periodo_retorno_inversion', ''))
 
     # Buenas practicas
-    pdf.titulo_seccion('Buenas practicas de gestion de costos')
+    pdf.titulo_seccion('Buenas prácticas de gestión de costos')
     etiquetas = bp.get('etiquetado_ejemplo', {})
     if etiquetas:
         pdf.set_x(10)
@@ -247,9 +293,9 @@ def generar_pdf(data: dict) -> bytes:
         for k, v in etiquetas.items():
             pdf.kv(f'  {k}', str(v))
         pdf.ln(2)
-    pdf.kv('AWS Budgets',        bp.get('budgets', ''))
-    pdf.kv('Cost Explorer',      bp.get('cost_explorer', ''))
-    pdf.kv('Revision periodica', bp.get('revision_periodica', ''))
+    pdf.kv('AWS Budgets',         bp.get('budgets', ''))
+    pdf.kv('Cost Explorer',       bp.get('cost_explorer', ''))
+    pdf.kv('Revisión periódica',  bp.get('revision_periodica', ''))
 
     # Limitaciones
     pdf.titulo_seccion('Limitaciones del estimado')
@@ -265,7 +311,7 @@ def generar_pdf(data: dict) -> bytes:
     pdf.set_font('Helvetica', 'I', 7)
     pdf.set_text_color(*InformePDF.GRIS)
     pdf.multi_cell(0, 4,
-        'Este informe fue generado automaticamente por SECC-AWS. '
+        'Este informe fue generado automáticamente por SECC-AWS. '
         'Las estimaciones son orientativas y no constituyen compromisos '
         'contractuales de costos reales. Los precios se obtienen de la '
         'AWS Price List API en el momento de la consulta.')
