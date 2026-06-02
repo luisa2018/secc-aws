@@ -4,6 +4,15 @@ from fpdf import FPDF
 from datetime import datetime
 
 
+ESCENARIOS = {
+    'monolitica': 'Monolítica',
+    'microservicios': 'Microservicios',
+    'serverless': 'Serverless',
+    'event_driven': 'Event-Driven',
+    'hibrida': 'H\xedbrida'
+}
+
+
 def fmt_usd(valor):
     try:
         return f"${float(valor):,.2f} USD"
@@ -133,6 +142,9 @@ def generar_pdf(data: dict) -> bytes:
     limits    = data.get('limitaciones_estimado', [])
     resumen   = limpiar(data.get('resumen', ''))
 
+    escenario_raw = meta.get('escenario', '')
+    escenario_display = ESCENARIOS.get(escenario_raw, escenario_raw)
+
     # Portada
     pdf.set_font('Helvetica', 'B', 14)
     pdf.set_text_color(*InformePDF.DORADO)
@@ -143,7 +155,7 @@ def generar_pdf(data: dict) -> bytes:
     pdf.set_text_color(*InformePDF.GRIS)
     pdf.set_x(10)
     pdf.cell(0, 5,
-             f"Escenario: {limpiar(meta.get('escenario',''))}   "
+             f"Escenario: {limpiar(escenario_display)}   "
              f"Fecha: {meta.get('fecha_ejecucion','')[:10]}",
              ln=True, align='C')
     pdf.ln(4)

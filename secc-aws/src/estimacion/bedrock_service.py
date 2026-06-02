@@ -107,7 +107,10 @@ REGLAS PARA EL INFORME:
 - Usa execute_cost_calculation para calcular el ahorro_estimado_usd
   en well_architected. El resultado nunca puede ser negativo.
 - En buenas_practicas el campo etiquetado_ejemplo debe tener
-  TODAS las claves y valores en español. Nunca uses claves en inglés.
+  TODAS las claves y valores en español con tildes y caracteres
+  especiales correctos. Nunca uses claves en inglés. Ejemplos
+  correctos: "Producción" no "Produccion", "Latinoamérica" no
+  "Latinoamerica", "Gestión" no "Gestion", "Región" no "Region".
 - Cuando el usuario ingrese un rango de volumen o transferencia
   usa siempre el valor más alto del rango para calcular costos.
 - En modelo_pricing y well_architected sé consistente: si recomiendas
