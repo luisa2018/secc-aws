@@ -79,6 +79,24 @@ get_aws_pricing múltiples veces en la misma evaluación.
 Ejemplo correcto: get_aws_pricing(servicios=["AmazonEC2", "AmazonRDS", "AmazonS3", "ElasticLoadBalancing", ...])
 Ejemplo incorrecto: llamar get_aws_pricing("AmazonEC2"), luego get_aws_pricing("AmazonRDS"), etc.
 
+REGLAS PARA DIMENSIONAMIENTO DE EC2:
+- Selecciona el tipo de instancia EC2 según la intensidad de procesamiento
+  y los usuarios concurrentes declarados:
+  * Ligera + hasta 1K usuarios: t3.medium (2 vCPU, 4 GB RAM)
+  * Ligera + 1K-10K usuarios: t3.large (2 vCPU, 8 GB RAM)
+  * Media + hasta 1K usuarios: t3.large (2 vCPU, 8 GB RAM)
+  * Media + 1K-10K usuarios: m5.large (2 vCPU, 8 GB RAM)
+  * Alta + cualquier escala: m5.xlarge o superior según carga
+  NUNCA uses m5.xlarge para cargas ligeras con menos de 10K usuarios.
+
+REGLAS PARA REGIÓN:
+- Selecciona la región AWS según la ubicación de los usuarios:
+  * latinoamerica: sa-east-1 (São Paulo) — única región en América del Sur
+  * estados_unidos: us-east-1 (N. Virginia)
+  * europa: eu-west-1 (Irlanda) o eu-central-1 (Frankfurt)
+  * global: us-east-1 como primaria con recomendación de CloudFront
+  NUNCA recomiendes us-east-1 cuando la ubicación sea latinoamerica.
+
 REGLAS PARA EL INFORME:
 - El campo plazo_compromiso del contexto indica el modelo de
   pago a usar: sin_compromiso=On-Demand, 1_año=Reserved 1 año,
