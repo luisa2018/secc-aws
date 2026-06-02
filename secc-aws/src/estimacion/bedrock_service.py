@@ -134,6 +134,9 @@ REGLAS PARA EL INFORME:
 - El campo presupuesto debe usarse EXACTAMENTE como lo ingresó el
   usuario, sin redondear ni modificar. Si el usuario ingresó 500,
   usa 500. Si ingresó 5000, usa 5000.
+- FORMATO DE NÚMEROS EN EL JSON: usa SIEMPRE punto decimal para
+  números (ej: 2129.84). NUNCA uses comas ni puntos como separadores
+  de miles dentro del JSON. Incorrecto: 2.129,84 — Correcto: 2129.84.
 
 REGLAS DE LICENCIAMIENTO:
 - Asume siempre Linux como sistema operativo y MySQL/PostgreSQL como
@@ -329,7 +332,18 @@ async def _ejecutar_agente(contexto, arquitectura, horizonte, inferidos):
 
     match = re.search(r'\{[\s\S]*"servicios"[\s\S]*\}', texto)
     if match:
-        return json.loads(match.group())
+        json_str = match.group()
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            # Buscar el último cierre válido del JSON
+            for i in range(len(json_str) - 1, -1, -1):
+                if json_str[i] == '}':
+                    try:
+                        return json.loads(json_str[:i+1])
+                    except json.JSONDecodeError:
+                        continue
+            raise ValueError("No se encontró JSON válido en la respuesta del agente")
     else:
         raise ValueError("No se encontró JSON válido en la respuesta del agente")
 
