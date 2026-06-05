@@ -333,6 +333,14 @@ async def _ejecutar_agente(contexto, arquitectura, horizonte, inferidos):
     match = re.search(r'\{[\s\S]*"servicios"[\s\S]*\}', texto)
     if match:
         json_str = match.group()
+
+        # Limpiar errores sintácticos comunes del modelo
+        json_str = re.sub(r',\s*\{\s*\}', '', json_str)    # elimina objetos vacíos {},
+        json_str = re.sub(r',\s*,', ',', json_str)          # elimina comas dobles ,,
+        json_str = re.sub(r'\[\s*,', '[', json_str)         # elimina [,
+        json_str = re.sub(r',\s*\]', ']', json_str)         # elimina ,]
+        json_str = re.sub(r'},\s*}', '}}', json_str)        # elimina },} mal formado
+
         try:
             return json.loads(json_str)
         except json.JSONDecodeError:
