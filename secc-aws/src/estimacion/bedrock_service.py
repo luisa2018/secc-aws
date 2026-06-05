@@ -330,6 +330,11 @@ async def _ejecutar_agente(contexto, arquitectura, horizonte, inferidos):
         respuesta = await agent.invoke_async(prompt_usuario)
         texto = str(respuesta).strip()
 
+    # Limpiar markdown antes de buscar el JSON
+    texto = re.sub(r'```json\s*', '', texto)
+    texto = re.sub(r'```\s*', '', texto)
+    texto = texto.strip()
+
     match = re.search(r'\{[\s\S]*"servicios"[\s\S]*\}', texto)
     if match:
         json_str = match.group()
