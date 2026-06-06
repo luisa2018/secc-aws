@@ -27,6 +27,20 @@ def fmt_pct(valor):
         return str(valor)
 
 
+def fmt_precio_unitario(valor):
+    """Formatea precio unitario sin ceros innecesarios, mínimo 2 decimales."""
+    try:
+        v = float(valor)
+        s = f"{v:.4f}".rstrip('0')
+        if '.' not in s:
+            s += '.00'
+        elif len(s.split('.')[1]) < 2:
+            s = f"{v:.2f}"
+        return f"${s}"
+    except Exception:
+        return str(valor)
+
+
 def limpiar(texto):
     if not isinstance(texto, str):
         texto = str(texto)
@@ -206,7 +220,7 @@ def generar_pdf(data: dict) -> bytes:
         pdf.cell(0, 7, limpiar(f"  {s.get('servicio_aws', '')}"), ln=True, fill=True)
         pdf.kv('  Configuraci\xf3n',  s.get('configuracion_minima', ''))
         pdf.kv('  Justificaci\xf3n',  s.get('justificacion', ''))
-        precio_str = f"${s.get('precio_unitario', 0):.4f} / {limpiar(s.get('unidad', ''))}"
+        precio_str = f"{fmt_precio_unitario(s.get('precio_unitario', 0))} / {limpiar(s.get('unidad', ''))}"
         pdf.kv('  Precio unitario', precio_str)
         pdf.kv('  Costo mensual',   fmt_usd(s.get('costo_mensual', 0)), InformePDF.VERDE)
         pdf.ln(2)
