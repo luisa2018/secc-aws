@@ -349,7 +349,11 @@ async def _ejecutar_agente(contexto, arquitectura, horizonte, inferidos):
         json_str = re.sub(r',\s*,', ',', json_str)          # elimina comas dobles ,,
         json_str = re.sub(r'\[\s*,', '[', json_str)         # elimina [,
         json_str = re.sub(r',\s*\]', ']', json_str)         # elimina ,]
-        json_str = re.sub(r'},\s*}', '}}', json_str)        # elimina },} mal formado
+        json_str = re.sub(r'},\s+}', '}}', json_str)        # elimina },} mal formado (solo con espacios/newlines)
+
+        # Asegurar que el JSON cierre correctamente
+        if not json_str.rstrip().endswith('}'):
+            json_str = json_str.rstrip() + '}'
 
         try:
             return json.loads(json_str)
