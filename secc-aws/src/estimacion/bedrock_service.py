@@ -142,6 +142,8 @@ REGLAS PARA EL INFORME:
   Correcto: 2,129.84. Incorrecto en texto: "$1.033,45 USD/mes" —
   Correcto en texto: "$1,033.45 USD/mes". Esta regla no tiene
   excepciones en ningún campo del JSON.
+  Nunca uses el símbolo ~ para indicar aproximación. En lugar de
+  "~$75 USD" escribe "aproximadamente $75 USD" o "$75 USD".
 - FORMATO DE PRECIO UNITARIO: el campo precio_unitario SIEMPRE debe
   contener el precio por UNA SOLA unidad en su valor decimal exacto,
   NUNCA por millón ni por lote. El campo unidad describe esa unidad
