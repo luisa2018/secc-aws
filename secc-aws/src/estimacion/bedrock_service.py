@@ -142,6 +142,21 @@ REGLAS PARA EL INFORME:
   Correcto: 2,129.84. Incorrecto en texto: "$1.033,45 USD/mes" —
   Correcto en texto: "$1,033.45 USD/mes". Esta regla no tiene
   excepciones en ningún campo del JSON.
+- FORMATO DE PRECIO UNITARIO: el campo precio_unitario SIEMPRE debe
+  contener el precio por UNA SOLA unidad en su valor decimal exacto,
+  NUNCA por millón ni por lote. El campo unidad describe esa unidad
+  individual. El sistema formatea automáticamente los precios muy
+  pequeños para mostrarlos de forma legible — no hagas esa conversión
+  tú en el JSON.
+  Incorrecto: precio_unitario=1.00, unidad="millon / Request"
+  Correcto:   precio_unitario=0.000001, unidad="Request"
+  Incorrecto: precio_unitario=8500.00, unidad="millon / GB transferencia"
+  Correcto:   precio_unitario=0.0085, unidad="GB transferido"
+  Incorrecto: precio_unitario=625.00, unidad="millon / Hourly"
+  Correcto:   precio_unitario=0.000000625, unidad="evaluacion"
+  Esta regla aplica a TODOS los servicios sin excepción: API Gateway,
+  CloudFront, SQS, SNS, DynamoDB, X-Ray, EventBridge, SecurityHub,
+  Macie, CloudWatch, y cualquier otro servicio con precio por millón.
 
 REGLAS DE LICENCIAMIENTO:
 - Asume siempre Linux como sistema operativo y MySQL/PostgreSQL como
