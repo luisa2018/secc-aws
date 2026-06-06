@@ -28,22 +28,26 @@ def fmt_pct(valor):
 
 
 def fmt_precio_unitario(valor):
-    """Formatea precio unitario sin ceros innecesarios, mínimo 2 decimales.
-    Para precios muy pequeños (<0.001) usa notación por millón para legibilidad."""
+    """Formatea precio unitario. Precios < $0.01 se muestran por millon."""
     try:
         v = float(valor)
-        if v == 0:
+        if v == 0 or not v:
             return "$0.00"
-        if v < 0.001:
-            # Expresar como costo por millón de unidades
-            por_millon = v * 1_000_000
-            return f"${por_millon:,.4f} / millón (${v:.8f} c/u)"
-        s = f"{v:.4f}".rstrip('0')
+        if v >= 0.01:
+            s = f"{v:.4f}".rstrip('0')
+            if '.' not in s:
+                s += '.00'
+            elif len(s.split('.')[1]) < 2:
+                s = f"{v:.2f}"
+            return f"${s}"
+        # Precio muy pequeño: mostrar por millón
+        por_millon = v * 1_000_000
+        s = f"{por_millon:.4f}".rstrip('0')
         if '.' not in s:
             s += '.00'
         elif len(s.split('.')[1]) < 2:
-            s = f"{v:.2f}"
-        return f"${s}"
+            s = f"{por_millon:.2f}"
+        return f"${s} / millon"
     except Exception:
         return str(valor)
 
@@ -117,13 +121,11 @@ class InformePDF(FPDF):
         clave_txt = limpiar(clave) + ':'
         valor_txt = limpiar(str(valor))
 
-        # Medir ancho real de la clave para no reservar espacio fijo
         self.set_font('Helvetica', 'B', 9)
-        ancho_clave = self.get_string_width(clave_txt) + 3  # 3mm de margen
-        ancho_clave = max(ancho_clave, 40)   # mínimo 40mm
-        ancho_clave = min(ancho_clave, 70)   # máximo 70mm
+        ancho_clave = self.get_string_width(clave_txt) + 3
+        ancho_clave = max(ancho_clave, 40)
+        ancho_clave = min(ancho_clave, 70)
 
-        y_ini = self.get_y()
         self.set_x(10)
         self.set_text_color(*self.GRIS)
         self.cell(ancho_clave, 6, clave_txt, ln=False)
