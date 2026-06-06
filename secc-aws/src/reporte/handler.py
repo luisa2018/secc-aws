@@ -28,9 +28,16 @@ def fmt_pct(valor):
 
 
 def fmt_precio_unitario(valor):
-    """Formatea precio unitario sin ceros innecesarios, mínimo 2 decimales."""
+    """Formatea precio unitario sin ceros innecesarios, mínimo 2 decimales.
+    Para precios muy pequeños (<0.001) usa notación por millón para legibilidad."""
     try:
         v = float(valor)
+        if v == 0:
+            return "$0.00"
+        if v < 0.001:
+            # Expresar como costo por millón de unidades
+            por_millon = v * 1_000_000
+            return f"${por_millon:,.4f} / millón (${v:.8f} c/u)"
         s = f"{v:.4f}".rstrip('0')
         if '.' not in s:
             s += '.00'
@@ -105,13 +112,25 @@ class InformePDF(FPDF):
         self.ln(3)
 
     def kv(self, clave, valor, color_valor=None):
-        self.set_x(10)
+        """Renderiza clave: valor con la clave en negrita gris y el valor
+        en multi_cell para que nunca se corte sin importar su longitud."""
+        clave_txt = limpiar(clave) + ':'
+        valor_txt = limpiar(str(valor))
+
+        # Medir ancho real de la clave para no reservar espacio fijo
         self.set_font('Helvetica', 'B', 9)
+        ancho_clave = self.get_string_width(clave_txt) + 3  # 3mm de margen
+        ancho_clave = max(ancho_clave, 40)   # mínimo 40mm
+        ancho_clave = min(ancho_clave, 70)   # máximo 70mm
+
+        y_ini = self.get_y()
+        self.set_x(10)
         self.set_text_color(*self.GRIS)
-        self.cell(55, 6, limpiar(clave) + ':', ln=False)
+        self.cell(ancho_clave, 6, clave_txt, ln=False)
+
         self.set_font('Helvetica', '', 9)
         self.set_text_color(*(color_valor or self.TEXTO))
-        self.multi_cell(0, 6, limpiar(str(valor)))
+        self.multi_cell(0, 6, valor_txt)
 
     def parrafo(self, texto, size=9):
         self.set_x(10)

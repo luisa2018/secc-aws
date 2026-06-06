@@ -134,9 +134,14 @@ REGLAS PARA EL INFORME:
 - El campo presupuesto debe usarse EXACTAMENTE como lo ingresó el
   usuario, sin redondear ni modificar. Si el usuario ingresó 500,
   usa 500. Si ingresó 5000, usa 5000.
-- FORMATO DE NÚMEROS EN EL JSON: usa SIEMPRE punto decimal para
-  números (ej: 2129.84). NUNCA uses comas ni puntos como separadores
-  de miles dentro del JSON. Incorrecto: 2.129,84 — Correcto: 2129.84.
+- FORMATO DE NÚMEROS EN EL JSON Y EN TODOS LOS TEXTOS NARRATIVOS:
+  usa SIEMPRE punto decimal y coma como separador de miles en cualquier
+  número, tanto en campos numéricos como en campos de texto (resumen,
+  evaluacion, recomendacion, justificacion, budgets, cost_explorer,
+  revision_periodica y cualquier otro string). Incorrecto: 2.129,84 —
+  Correcto: 2,129.84. Incorrecto en texto: "$1.033,45 USD/mes" —
+  Correcto en texto: "$1,033.45 USD/mes". Esta regla no tiene
+  excepciones en ningún campo del JSON.
 
 REGLAS DE LICENCIAMIENTO:
 - Asume siempre Linux como sistema operativo y MySQL/PostgreSQL como
