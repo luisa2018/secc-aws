@@ -135,31 +135,9 @@ REGLAS PARA EL INFORME:
 - El campo presupuesto debe usarse EXACTAMENTE como lo ingresó el
   usuario, sin redondear ni modificar. Si el usuario ingresó 500,
   usa 500. Si ingresó 5000, usa 5000.
-- FORMATO DE NÚMEROS EN EL JSON Y EN TODOS LOS TEXTOS NARRATIVOS:
-  usa SIEMPRE punto decimal y coma como separador de miles en cualquier
-  número, tanto en campos numéricos como en campos de texto (resumen,
-  evaluacion, recomendacion, justificacion, budgets, cost_explorer,
-  revision_periodica y cualquier otro string). Incorrecto: 2.129,84 —
-  Correcto: 2,129.84. Incorrecto en texto: "$1.033,45 USD/mes" —
-  Correcto en texto: "$1,033.45 USD/mes". Esta regla no tiene
-  excepciones en ningún campo del JSON. Nunca uses el símbolo ~ para
-  indicar aproximación. En lugar de "~$75 USD" escribe "aproximadamente
-  $75 USD" o "$75 USD".
-- FORMATO DE PRECIO UNITARIO: el campo precio_unitario SIEMPRE debe
-  contener el precio por UNA SOLA unidad en su valor decimal exacto,
-  NUNCA por millón ni por lote. El campo unidad describe esa unidad
-  individual. El sistema formatea automáticamente los precios muy
-  pequeños para mostrarlos de forma legible — no hagas esa conversión
-  tú en el JSON.
-  Incorrecto: precio_unitario=1.00, unidad="millon / Request"
-  Correcto:   precio_unitario=0.000001, unidad="Request"
-  Incorrecto: precio_unitario=8500.00, unidad="millon / GB transferencia"
-  Correcto:   precio_unitario=0.0085, unidad="GB transferido"
-  Incorrecto: precio_unitario=625.00, unidad="millon / Hourly"
-  Correcto:   precio_unitario=0.000000625, unidad="evaluacion"
-  Esta regla aplica a TODOS los servicios sin excepción: API Gateway,
-  CloudFront, SQS, SNS, DynamoDB, X-Ray, EventBridge, SecurityHub,
-  Macie, CloudWatch, y cualquier otro servicio con precio por millón.
+- FORMATO DE NÚMEROS EN EL JSON: usa SIEMPRE punto decimal para
+  números (ej: 2129.84). NUNCA uses comas ni puntos como separadores
+  de miles dentro del JSON. Incorrecto: 2.129,84 — Correcto: 2129.84.
 
 REGLAS DE LICENCIAMIENTO:
 - Asume siempre Linux como sistema operativo y MySQL/PostgreSQL como
@@ -365,8 +343,7 @@ async def _ejecutar_agente(contexto, arquitectura, horizonte, inferidos):
 
     json_str = match.group()
 
-    # Reparar y parsear con json_repair — maneja objetos vacíos,
-    # comas dobles, JSON truncado y cualquier error sintáctico menor
+    # Reparar y parsear con json_repair
     resultado = repair_json(json_str, return_objects=True)
 
     if not isinstance(resultado, dict) or 'servicios' not in resultado:
