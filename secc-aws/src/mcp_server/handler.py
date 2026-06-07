@@ -3,8 +3,6 @@ import boto3
 from botocore.exceptions import ClientError
 from awslabs.mcp_lambda_handler import MCPLambdaHandler
 
-from rule_engine import AWS_COST_SERVICES
-
 mcp = MCPLambdaHandler(name="SECC-AWS MCP Server", version="1.0.0")
 
 pricing_client = boto3.client('pricing', region_name='us-east-1')
@@ -188,7 +186,6 @@ def consultar_precio_servicio(service_code, location_name):
 @mcp.tool()
 def get_aws_pricing(servicios: list, region: str = "us-east-1") -> dict:
     """Consulta el precio unitario de una lista de servicios AWS en AWS Pricing API"""
-    # Validar que servicios sea una lista — si llega como string convertirlo
     if isinstance(servicios, str):
         try:
             servicios = json.loads(servicios)
@@ -203,15 +200,8 @@ def get_aws_pricing(servicios: list, region: str = "us-east-1") -> dict:
     }
 
 
-@mcp.tool()
-def list_supported_services() -> dict:
-    """Lista los servicios AWS soportados para consulta de precios"""
-    return {"servicios_soportados": sorted(list(AWS_COST_SERVICES))}
-
-
 def lambda_handler(event, context):
     """Entry point para AWS Lambda"""
-    # Manejar requests sin body (GET, OPTIONS, health checks)
     http_method = (
         event.get('requestContext', {}).get('http', {}).get('method', '')
         or event.get('httpMethod', '')
