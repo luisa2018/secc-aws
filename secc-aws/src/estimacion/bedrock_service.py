@@ -2,7 +2,6 @@ import json
 import os
 import asyncio
 import re
-from json_repair import repair_json
 from strands import Agent
 from strands.tools.mcp import MCPClient
 from mcp.client.streamable_http import streamablehttp_client
@@ -48,9 +47,8 @@ y calcular los costos con precisión.
 
 PROCESO QUE DEBES SEGUIR:
 1. Identifica los servicios AWS necesarios para el escenario.
-2. Usa la tool get_aws_pricing UNA SOLA VEZ con TODOS los servicios
-   identificados en una sola lista para consultar los precios oficiales
-   en la región correspondiente.
+2. Usa la tool get_aws_pricing para consultar los precios oficiales
+   de TODOS los servicios identificados en la región correspondiente.
 3. Usa la tool execute_cost_calculation para calcular con precisión
    el costo_mensual de cada servicio. Pásale un script Python con
    las variables de precio_unitario y uso estimado según el escenario.
@@ -74,30 +72,6 @@ REGLAS PARA IDENTIFICAR SERVICIOS:
   su costo con tarifas oficiales conocidas e identifícalo en
   limitaciones_estimado.
 
-IMPORTANTE — LLAMADA AL MCP: Debes invocar get_aws_pricing UNA SOLA VEZ
-con TODOS los servicios identificados en una sola lista. NUNCA llames
-get_aws_pricing múltiples veces en la misma evaluación.
-Ejemplo correcto: get_aws_pricing(servicios=["AmazonEC2", "AmazonRDS", "AmazonS3", "ElasticLoadBalancing", ...])
-Ejemplo incorrecto: llamar get_aws_pricing("AmazonEC2"), luego get_aws_pricing("AmazonRDS"), etc.
-
-REGLAS PARA DIMENSIONAMIENTO DE EC2:
-- Selecciona el tipo de instancia EC2 según la intensidad de procesamiento
-  y los usuarios concurrentes declarados:
-  * Ligera + hasta 1K usuarios: t3.medium (2 vCPU, 4 GB RAM)
-  * Ligera + 1K-10K usuarios: t3.large (2 vCPU, 8 GB RAM)
-  * Media + hasta 1K usuarios: t3.large (2 vCPU, 8 GB RAM)
-  * Media + 1K-10K usuarios: m5.large (2 vCPU, 8 GB RAM)
-  * Alta + cualquier escala: m5.xlarge o superior según carga
-  NUNCA uses m5.xlarge para cargas ligeras con menos de 10K usuarios.
-
-REGLAS PARA REGIÓN:
-- Selecciona la región AWS según la ubicación de los usuarios:
-  * latinoamerica: sa-east-1 (São Paulo) — única región en América del Sur
-  * estados_unidos: us-east-1 (N. Virginia)
-  * europa: eu-west-1 (Irlanda) o eu-central-1 (Frankfurt)
-  * global: us-east-1 como primaria con recomendación de CloudFront
-  NUNCA recomiendes us-east-1 cuando la ubicación sea latinoamerica.
-
 REGLAS PARA EL INFORME:
 - El campo plazo_compromiso del contexto indica el modelo de
   pago a usar: sin_compromiso=On-Demand, 1_año=Reserved 1 año,
@@ -108,10 +82,7 @@ REGLAS PARA EL INFORME:
 - Usa execute_cost_calculation para calcular el ahorro_estimado_usd
   en well_architected. El resultado nunca puede ser negativo.
 - En buenas_practicas el campo etiquetado_ejemplo debe tener
-  TODAS las claves y valores en español con tildes y caracteres
-  especiales correctos. Nunca uses claves en inglés. Ejemplos
-  correctos: "Producción" no "Produccion", "Latinoamérica" no
-  "Latinoamerica", "Gestión" no "Gestion", "Región" no "Region".
+  TODAS las claves y valores en español. Nunca uses claves en inglés.
 - Cuando el usuario ingrese un rango de volumen o transferencia
   usa siempre el valor más alto del rango para calcular costos.
 - En modelo_pricing y well_architected sé consistente: si recomiendas
@@ -121,49 +92,6 @@ REGLAS PARA EL INFORME:
 - Para AmazonRDS incluye siempre todos los componentes de costo.
 - Para AmazonEBS incluye siempre todos los componentes de costo.
 - Para cada servicio calcula todos sus componentes de costo principales.
-- El campo periodo en costo_estimado debe contener ÚNICAMENTE el
-  horizonte de tiempo en una sola palabra: "mensual", "trimestral"
-  o "anual". Sin texto adicional.
-- En buenas_practicas el campo budgets debe explicar cómo configurar
-  alertas y también cómo leer el costo acumulado vs el costo previsto
-  en la consola de AWS Billing, y qué significa cuando el costo
-  previsto es mayor al acumulado.
-- En buenas_practicas el campo cost_explorer debe explicar cómo usar
-  Cost Explorer y orientar al usuario sobre cuáles de los servicios
-  propuestos generan costo por uso versus costo fijo mensual, para
-  que sepa qué vigilar en su factura.
-- El campo presupuesto debe usarse EXACTAMENTE como lo ingresó el
-  usuario, sin redondear ni modificar. Si el usuario ingresó 500,
-  usa 500. Si ingresó 5000, usa 5000.
-- FORMATO DE NÚMEROS EN EL JSON: usa SIEMPRE punto decimal para
-  números (ej: 2129.84). NUNCA uses comas ni puntos como separadores
-  de miles dentro del JSON. Incorrecto: 2.129,84 — Correcto: 2129.84.
-
-REGLAS DE LICENCIAMIENTO:
-- Asume siempre Linux como sistema operativo y MySQL/PostgreSQL como
-  motor de base de datos relacional, ya que no generan costo de licencia.
-  Estos son los valores base del estimado total.
-- El campo region_recomendada DEBE incluir SIEMPRE los siguientes
-  campos adicionales, sin excepción:
-  * motor_recomendado: string con el motor de base de datos más
-    adecuado para el escenario (ej: "PostgreSQL", "MySQL", "DynamoDB").
-    Si no hay base de datos en el escenario usa "N/A".
-  * justificacion_motor: string con justificación técnica breve de
-    por qué ese motor es el más adecuado para el escenario.
-    Si no hay base de datos usa "No aplica para este escenario".
-  * referencia_licenciamiento: objeto con costos adicionales mensuales
-    estimados si el usuario optara por software propietario en lugar
-    del open source asumido. SIEMPRE incluye los tres campos:
-    - nota: "Estos costos NO están incluidos en el estimado. Son
-      referencias informativas si se opta por software propietario."
-    - costo_sqlserver_usd: número con el costo adicional mensual
-      estimado de usar SQL Server en RDS en lugar de PostgreSQL/MySQL.
-      Si no hay RDS en el escenario usa 0.
-    - costo_oracle_usd: número con el costo adicional mensual estimado
-      de usar Oracle en RDS. Si no hay RDS usa 0.
-    - costo_windows_server_usd: número con el costo adicional mensual
-      estimado de usar Windows Server en EC2 en lugar de Linux.
-      Si no hay EC2 usa 0.
 
 IMPORTANTE: Responde ÚNICAMENTE con el siguiente JSON.
 Sin explicaciones, sin markdown, sin texto adicional. Solo el JSON:
@@ -212,15 +140,7 @@ Sin explicaciones, sin markdown, sin texto adicional. Solo el JSON:
   ],
   "region_recomendada": {{
     "region": "string",
-    "justificacion": "string",
-    "motor_recomendado": "string",
-    "justificacion_motor": "string",
-    "referencia_licenciamiento": {{
-      "nota": "string",
-      "costo_sqlserver_usd": number,
-      "costo_oracle_usd": number,
-      "costo_windows_server_usd": number
-    }}
+    "justificacion": "string"
   }},
   "well_architected": {{
     "evaluacion": "string con costo actual y proyectado en USD",
@@ -331,18 +251,11 @@ async def _ejecutar_agente(contexto, arquitectura, horizonte, inferidos):
         respuesta = await agent.invoke_async(prompt_usuario)
         texto = str(respuesta).strip()
 
-    # Limpiar markdown antes de buscar el JSON
-    texto = re.sub(r'```json\s*', '', texto)
-    texto = re.sub(r'```\s*', '', texto)
-    texto = texto.strip()
-
-    # Reparar y parsear con json_repair directamente sobre el texto completo
-    resultado = repair_json(texto, return_objects=True)
-
-    if not isinstance(resultado, dict) or 'servicios' not in resultado:
+    match = re.search(r'\{[\s\S]*"servicios"[\s\S]*\}', texto)
+    if match:
+        return json.loads(match.group())
+    else:
         raise ValueError("No se encontró JSON válido en la respuesta del agente")
-
-    return resultado
 
 
 def generar_informe(contexto, arquitectura, horizonte, inferidos):

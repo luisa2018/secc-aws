@@ -2,4 +2,3 @@ boto3
 strands-agents==1.40.0
 strands-agents-tools==0.5.3
 mcp>=1.23.0
-json-repair
