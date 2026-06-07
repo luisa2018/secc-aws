@@ -359,7 +359,7 @@ async def _ejecutar_agente(contexto, arquitectura, horizonte, inferidos):
     texto = texto.strip()
 
     # Extraer el JSON del texto
-    match = re.search(r'\{[\s\S]*"servicios"[\s\S]*', texto)
+    match = re.search(r'\{[\s\S]*"servicios"[\s\S]*\}', texto)
     if not match:
         raise ValueError("No se encontró JSON válido en la respuesta del agente")
 
