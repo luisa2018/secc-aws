@@ -336,15 +336,8 @@ async def _ejecutar_agente(contexto, arquitectura, horizonte, inferidos):
     texto = re.sub(r'```\s*', '', texto)
     texto = texto.strip()
 
-    # Extraer el JSON del texto
-    match = re.search(r'\{[\s\S]*"servicios"[\s\S]*\}', texto)
-    if not match:
-        raise ValueError("No se encontró JSON válido en la respuesta del agente")
-
-    json_str = match.group()
-
-    # Reparar y parsear con json_repair
-    resultado = repair_json(json_str, return_objects=True)
+    # Reparar y parsear con json_repair directamente sobre el texto completo
+    resultado = repair_json(texto, return_objects=True)
 
     if not isinstance(resultado, dict) or 'servicios' not in resultado:
         raise ValueError("No se encontró JSON válido en la respuesta del agente")
