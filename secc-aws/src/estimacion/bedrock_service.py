@@ -2,6 +2,7 @@ import json
 import os
 import asyncio
 import re
+from json_repair import repair_json
 from strands import Agent
 from strands.tools.mcp import MCPClient
 from mcp.client.streamable_http import streamablehttp_client
@@ -141,9 +142,9 @@ REGLAS PARA EL INFORME:
   revision_periodica y cualquier otro string). Incorrecto: 2.129,84 —
   Correcto: 2,129.84. Incorrecto en texto: "$1.033,45 USD/mes" —
   Correcto en texto: "$1,033.45 USD/mes". Esta regla no tiene
-  excepciones en ningún campo del JSON.
-  Nunca uses el símbolo ~ para indicar aproximación. En lugar de
-  "~$75 USD" escribe "aproximadamente $75 USD" o "$75 USD".
+  excepciones en ningún campo del JSON. Nunca uses el símbolo ~ para
+  indicar aproximación. En lugar de "~$75 USD" escribe "aproximadamente
+  $75 USD" o "$75 USD".
 - FORMATO DE PRECIO UNITARIO: el campo precio_unitario SIEMPRE debe
   contener el precio por UNA SOLA unidad en su valor decimal exacto,
   NUNCA por millón ni por lote. El campo unidad describe esa unidad
@@ -357,34 +358,21 @@ async def _ejecutar_agente(contexto, arquitectura, horizonte, inferidos):
     texto = re.sub(r'```\s*', '', texto)
     texto = texto.strip()
 
-    match = re.search(r'\{[\s\S]*"servicios"[\s\S]*\}', texto)
-    if match:
-        json_str = match.group()
-
-        # Limpiar errores sintácticos comunes del modelo
-        json_str = re.sub(r',\s*\{\s*\}', '', json_str)    # elimina objetos vacíos {},
-        json_str = re.sub(r',\s*,', ',', json_str)          # elimina comas dobles ,,
-        json_str = re.sub(r'\[\s*,', '[', json_str)         # elimina [,
-        json_str = re.sub(r',\s*\]', ']', json_str)         # elimina ,]
-        json_str = re.sub(r'},\s+}', '}}', json_str)        # elimina },} mal formado (solo con espacios/newlines)
-
-        # Asegurar que el JSON cierre correctamente
-        if not json_str.rstrip().endswith('}'):
-            json_str = json_str.rstrip() + '}'
-
-        try:
-            return json.loads(json_str)
-        except json.JSONDecodeError:
-            # Buscar el último cierre válido del JSON
-            for i in range(len(json_str) - 1, -1, -1):
-                if json_str[i] == '}':
-                    try:
-                        return json.loads(json_str[:i+1])
-                    except json.JSONDecodeError:
-                        continue
-            raise ValueError("No se encontró JSON válido en la respuesta del agente")
-    else:
+    # Extraer el JSON del texto
+    match = re.search(r'\{[\s\S]*"servicios"[\s\S]*', texto)
+    if not match:
         raise ValueError("No se encontró JSON válido en la respuesta del agente")
+
+    json_str = match.group()
+
+    # Reparar y parsear con json_repair — maneja objetos vacíos,
+    # comas dobles, JSON truncado y cualquier error sintáctico menor
+    resultado = repair_json(json_str, return_objects=True)
+
+    if not isinstance(resultado, dict) or 'servicios' not in resultado:
+        raise ValueError("No se encontró JSON válido en la respuesta del agente")
+
+    return resultado
 
 
 def generar_informe(contexto, arquitectura, horizonte, inferidos):
