@@ -27,31 +27,6 @@ def fmt_pct(valor):
         return str(valor)
 
 
-def fmt_precio_unitario(valor):
-    """Formatea precio unitario. Precios < $0.01 se muestran por millon."""
-    try:
-        v = float(valor)
-        if v == 0 or not v:
-            return "$0.00"
-        if v >= 0.01:
-            s = f"{v:.4f}".rstrip('0')
-            if '.' not in s:
-                s += '.00'
-            elif len(s.split('.')[1]) < 2:
-                s = f"{v:.2f}"
-            return f"${s}"
-        # Precio muy pequeño: mostrar por millón
-        por_millon = v * 1_000_000
-        s = f"{por_millon:.4f}".rstrip('0')
-        if '.' not in s:
-            s += '.00'
-        elif len(s.split('.')[1]) < 2:
-            s = f"{por_millon:.2f}"
-        return f"${s} / millon"
-    except Exception:
-        return str(valor)
-
-
 def limpiar(texto):
     if not isinstance(texto, str):
         texto = str(texto)
@@ -116,23 +91,13 @@ class InformePDF(FPDF):
         self.ln(3)
 
     def kv(self, clave, valor, color_valor=None):
-        """Renderiza clave: valor con la clave en negrita gris y el valor
-        en multi_cell para que nunca se corte sin importar su longitud."""
-        clave_txt = limpiar(clave) + ':'
-        valor_txt = limpiar(str(valor))
-
-        self.set_font('Helvetica', 'B', 9)
-        ancho_clave = self.get_string_width(clave_txt) + 3
-        ancho_clave = max(ancho_clave, 40)
-        ancho_clave = min(ancho_clave, 70)
-
         self.set_x(10)
+        self.set_font('Helvetica', 'B', 9)
         self.set_text_color(*self.GRIS)
-        self.cell(ancho_clave, 6, clave_txt, ln=False)
-
+        self.cell(55, 6, limpiar(clave) + ':', ln=False)
         self.set_font('Helvetica', '', 9)
         self.set_text_color(*(color_valor or self.TEXTO))
-        self.multi_cell(0, 6, valor_txt)
+        self.multi_cell(0, 6, limpiar(str(valor)))
 
     def parrafo(self, texto, size=9):
         self.set_x(10)
@@ -241,7 +206,7 @@ def generar_pdf(data: dict) -> bytes:
         pdf.cell(0, 7, limpiar(f"  {s.get('servicio_aws', '')}"), ln=True, fill=True)
         pdf.kv('  Configuraci\xf3n',  s.get('configuracion_minima', ''))
         pdf.kv('  Justificaci\xf3n',  s.get('justificacion', ''))
-        precio_str = f"{fmt_precio_unitario(s.get('precio_unitario', 0))} / {limpiar(s.get('unidad', ''))}"
+        precio_str = f"${s.get('precio_unitario', 0):.4f} / {limpiar(s.get('unidad', ''))}"
         pdf.kv('  Precio unitario', precio_str)
         pdf.kv('  Costo mensual',   fmt_usd(s.get('costo_mensual', 0)), InformePDF.VERDE)
         pdf.ln(2)
