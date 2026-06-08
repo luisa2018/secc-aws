@@ -1,7 +1,11 @@
 import json
+import logging
 import boto3
 from botocore.exceptions import ClientError
 from awslabs.mcp_lambda_handler import MCPLambdaHandler
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 mcp = MCPLambdaHandler(name="SECC-AWS MCP Server", version="1.0.0")
 
@@ -20,13 +24,10 @@ REGION_NAMES = {
     "sa-east-1":      "South America (Sao Paulo)"
 }
 
-# Servicios que no usan filtro de location porque son globales
 SIN_FILTRO_LOCATION = {
     "AmazonDynamoDB",
 }
 
-# Filtros base por servicio — solo los campos que NO cambian entre escenarios
-# Los campos dinámicos (instanceType, databaseEngine, etc.) vienen en parametros
 FILTROS_BASE = {
     "AmazonEC2": [
         {"field": "operatingSystem", "value": "Linux"},
@@ -48,8 +49,8 @@ FILTROS_BASE = {
         {"field": "loadBalancerType", "value": "Application"},
     ],
     "AmazonCloudFront": [
-        {"field": "location",   "value": "Europe"},
-        {"field": "usagetype",  "value": "EU-DataTransfer-Out-Bytes"},
+        {"field": "location",  "value": "Europe"},
+        {"field": "usagetype", "value": "EU-DataTransfer-Out-Bytes"},
     ],
     "AmazonDynamoDB": [
         {"field": "usagetype", "value": "WriteRequestUnits"},
@@ -115,15 +116,9 @@ FILTROS_BASE = {
 
 
 def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=None):
-    """
-    Consulta precio de un servicio AWS con filtros base + filtros dinámicos.
-    parametros_dinamicos: dict con campos adicionales, ej:
-        {"instanceType": "m5.large", "databaseEngine": "MySQL"}
-    """
     try:
         pricing_filters = []
 
-        # Agregar filtro de location si el servicio lo requiere
         if service_code not in SIN_FILTRO_LOCATION:
             pricing_filters.append({
                 "Type": "TERM_MATCH",
@@ -131,7 +126,6 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
                 "Value": location_name
             })
 
-        # Agregar filtros base del servicio
         for f in FILTROS_BASE.get(service_code, []):
             pricing_filters.append({
                 "Type": "TERM_MATCH",
@@ -139,7 +133,6 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
                 "Value": f["value"]
             })
 
-        # Agregar filtros dinámicos que vienen del agente
         if parametros_dinamicos:
             for field, value in parametros_dinamicos.items():
                 pricing_filters.append({
@@ -148,6 +141,8 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
                     "Value": str(value)
                 })
 
+        logger.info(f"[MCP] Consultando {service_code} | location={location_name} | filtros={json.dumps(pricing_filters)}")
+
         kwargs = {"ServiceCode": service_code, "MaxResults": 5}
         if pricing_filters:
             kwargs["Filters"] = pricing_filters
@@ -155,7 +150,10 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
         response = pricing_client.get_products(**kwargs)
         price_list = response.get("PriceList", [])
 
+        logger.info(f"[MCP] {service_code} | resultados={len(price_list)}")
+
         if not price_list:
+            logger.warning(f"[MCP] {service_code} | SIN RESULTADOS para filtros aplicados")
             return {
                 "servicio":        service_code,
                 "precio_unitario": 0.0,
@@ -163,7 +161,6 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
                 "descripcion":     "Sin precio disponible para los filtros indicados"
             }
 
-        # Buscar el primer precio mayor a 0
         for raw in price_list:
             item = json.loads(raw)
             terms = item.get("terms", {}).get("OnDemand", {})
@@ -171,6 +168,7 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
                 for dimension in term.get("priceDimensions", {}).values():
                     precio_str = dimension.get("pricePerUnit", {}).get("USD", "0")
                     if float(precio_str) > 0:
+                        logger.info(f"[MCP] {service_code} | precio={precio_str} | unidad={dimension.get('unit')} | desc={dimension.get('description','')[:80]}")
                         return {
                             "servicio":        service_code,
                             "precio_unitario": float(precio_str),
@@ -178,6 +176,7 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
                             "descripcion":     dimension.get("description", "")
                         }
 
+        logger.warning(f"[MCP] {service_code} | resultados encontrados pero todos precio=0 o free tier")
         return {
             "servicio":        service_code,
             "precio_unitario": 0.0,
@@ -186,6 +185,7 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
         }
 
     except ClientError as e:
+        logger.error(f"[MCP] {service_code} | AWS Error: {e.response['Error']['Message']}")
         return {
             "servicio":        service_code,
             "precio_unitario": 0.0,
@@ -193,6 +193,7 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
             "descripcion":     f"AWS Error: {e.response['Error']['Message']}"
         }
     except Exception as e:
+        logger.error(f"[MCP] {service_code} | Error inesperado: {str(e)}")
         return {
             "servicio":        service_code,
             "precio_unitario": 0.0,
@@ -217,13 +218,9 @@ def get_aws_pricing(
             Ej: {
                 "AmazonEC2": {"instanceType": "m5.large"},
                 "AmazonRDS": {"instanceType": "db.m5.large", "databaseEngine": "MySQL"},
-                "AmazonElastiCache": {"instanceType": "cache.r6g.large"}
+                "AmazonElastiCache": {"instanceType": "cache.r6g.large"},
+                "AmazonSageMaker": {"instanceType": "ml.m5.xlarge"}
             }
-            Campos soportados por servicio:
-            - AmazonEC2: instanceType (ej: "m5.large", "t3.medium", "m5.xlarge")
-            - AmazonRDS: instanceType (ej: "db.m5.large"), databaseEngine ("MySQL"/"PostgreSQL")
-            - AmazonElastiCache: instanceType (ej: "cache.r6g.large")
-            - AmazonSageMaker: instanceType (ej: "ml.m5.xlarge")
     """
     if isinstance(servicios, str):
         try:
@@ -239,6 +236,8 @@ def get_aws_pricing(
 
     location_name = REGION_NAMES.get(region, "US East (N. Virginia)")
 
+    logger.info(f"[MCP] get_aws_pricing | region={region} | location={location_name} | servicios={servicios} | parametros={json.dumps(parametros)}")
+
     precios = []
     for servicio in servicios:
         params_servicio = parametros.get(servicio, {})
@@ -253,7 +252,6 @@ def get_aws_pricing(
 
 
 def lambda_handler(event, context):
-    """Entry point para AWS Lambda"""
     http_method = (
         event.get('requestContext', {}).get('http', {}).get('method', '')
         or event.get('httpMethod', '')
