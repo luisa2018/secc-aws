@@ -122,6 +122,26 @@ PASO 2 — IDENTIFICAR SERVICIOS
   inclúyelo con tarifas oficiales conocidas y regístralo en
   limitaciones_estimado.
 
+VALIDACIÓN OBLIGATORIA — verifica que el escenario esté
+completamente cubierto antes de continuar al PASO 3:
+
+  expone_api_publica = true → ¿incluiste APIGateway Y AWSWAF?
+  ia_tipo = propia          → ¿incluiste SageMaker Y AWSSecretsManager?
+  ia_tipo = apis_externas   → ¿incluiste AWSSecretsManager?
+  patron_despliegue = contenedores → ¿incluiste AmazonEKS Y AmazonECR Y AmazonEBS?
+  red_privada = true        → ¿incluiste AmazonVPC (NatGateway)?
+  cumplimiento = GDPR/HIPAA → ¿incluiste AWSKMS Y AWSBackup?
+  monitoreo = true          → ¿incluiste AmazonCloudWatch?
+  cdn = true                → ¿incluiste AmazonCloudFront?
+  backups = true            → ¿incluiste AWSBackup?
+  ubicacion_usuarios = global → ¿incluiste AmazonRoute53?
+  ambiente = produccion     → ¿incluiste AWSWAF si expone_api_publica = true?
+
+  Si alguno falta agrégalo ANTES de continuar al PASO 3.
+  NUNCA omitas servicios para ajustarte al presupuesto.
+  Si el costo supera el presupuesto refleja el costo real
+  y recomienda la alternativa de menor costo.
+
 ═══════════════════════════════════════════════════════
 PASO 3 — CONSULTAR PRECIOS (UNA SOLA VEZ)
 ═══════════════════════════════════════════════════════
