@@ -24,10 +24,16 @@ REGION_NAMES = {
     "sa-east-1":      "South America (Sao Paulo)"
 }
 
-SIN_FILTRO_LOCATION = {
-    "AmazonDynamoDB",
+# Campos dinámicos válidos por servicio — SOLO estos son aceptados desde Bedrock
+# Cualquier otro campo enviado por Bedrock es ignorado
+CAMPOS_DINAMICOS_VALIDOS = {
+    "AmazonEC2":         ["instanceType"],
+    "AmazonRDS":         ["instanceType", "databaseEngine"],
+    "AmazonElastiCache": ["instanceType"],
+    "AmazonSageMaker":   ["instanceType"],
 }
 
+# Filtros base internos por servicio — el MCP los maneja sin depender de Bedrock
 FILTROS_BASE = {
     "AmazonEC2": [
         {"field": "operatingSystem", "value": "Linux"},
@@ -49,8 +55,7 @@ FILTROS_BASE = {
         {"field": "loadBalancerType", "value": "Application"},
     ],
     "AmazonCloudFront": [
-        {"field": "location",  "value": "Europe"},
-        {"field": "usagetype", "value": "EU-DataTransfer-Out-Bytes"},
+        {"field": "usagetype", "value": "US-DataTransfer-Out-Bytes"},
     ],
     "AmazonDynamoDB": [
         {"field": "usagetype", "value": "WriteRequestUnits"},
@@ -94,6 +99,9 @@ FILTROS_BASE = {
     "AWSKMS": [
         {"field": "group", "value": "AWS-KMS-Keys"},
     ],
+    "AmazonECR": [
+        {"field": "group", "value": "AmazonECR-TimedStorage-ByteHrs"},
+    ],
     "AmazonKinesis": [
         {"field": "group", "value": "AmazonKinesis-ShardHour"},
     ],
@@ -114,6 +122,18 @@ FILTROS_BASE = {
     ],
 }
 
+# Servicios que no usan filtro de location
+SIN_FILTRO_LOCATION = {"AmazonDynamoDB"}
+
+
+def filtrar_parametros_validos(service_code, parametros_raw):
+    """
+    Solo acepta los campos dinámicos válidos para cada servicio.
+    Ignora cualquier campo inventado por Bedrock.
+    """
+    campos_validos = CAMPOS_DINAMICOS_VALIDOS.get(service_code, [])
+    return {k: v for k, v in parametros_raw.items() if k in campos_validos}
+
 
 def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=None):
     try:
@@ -133,15 +153,17 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
                 "Value": f["value"]
             })
 
+        # Solo agregar parámetros dinámicos válidos
         if parametros_dinamicos:
-            for field, value in parametros_dinamicos.items():
+            parametros_limpios = filtrar_parametros_validos(service_code, parametros_dinamicos)
+            for field, value in parametros_limpios.items():
                 pricing_filters.append({
                     "Type": "TERM_MATCH",
                     "Field": field,
                     "Value": str(value)
                 })
 
-        logger.info(f"[MCP] Consultando {service_code} | location={location_name} | filtros={json.dumps(pricing_filters)}")
+        logger.info(f"[MCP] {service_code} | filtros={json.dumps(pricing_filters)}")
 
         kwargs = {"ServiceCode": service_code, "MaxResults": 5}
         if pricing_filters:
@@ -153,7 +175,7 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
         logger.info(f"[MCP] {service_code} | resultados={len(price_list)}")
 
         if not price_list:
-            logger.warning(f"[MCP] {service_code} | SIN RESULTADOS para filtros aplicados")
+            logger.warning(f"[MCP] {service_code} | SIN RESULTADOS")
             return {
                 "servicio":        service_code,
                 "precio_unitario": 0.0,
@@ -176,7 +198,7 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
                             "descripcion":     dimension.get("description", "")
                         }
 
-        logger.warning(f"[MCP] {service_code} | resultados encontrados pero todos precio=0 o free tier")
+        logger.warning(f"[MCP] {service_code} | solo precios en 0 o free tier")
         return {
             "servicio":        service_code,
             "precio_unitario": 0.0,
@@ -193,7 +215,7 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
             "descripcion":     f"AWS Error: {e.response['Error']['Message']}"
         }
     except Exception as e:
-        logger.error(f"[MCP] {service_code} | Error inesperado: {str(e)}")
+        logger.error(f"[MCP] {service_code} | Error: {str(e)}")
         return {
             "servicio":        service_code,
             "precio_unitario": 0.0,
@@ -209,18 +231,56 @@ def get_aws_pricing(
     parametros: dict = {}
 ) -> dict:
     """
-    Consulta el precio unitario de una lista de servicios AWS.
+    Consulta el precio unitario oficial de servicios AWS desde la AWS Price List API.
 
     Args:
-        servicios: Lista de service codes AWS. Ej: ["AmazonEC2", "AmazonRDS"]
-        region: Región AWS. Ej: "us-east-1", "eu-west-1", "sa-east-1"
-        parametros: Filtros dinámicos por servicio para obtener precio exacto.
-            Ej: {
+        servicios: Lista de service codes AWS oficiales.
+            Ejemplos: ["AmazonEC2", "AmazonRDS", "AmazonS3", "AmazonEKS",
+                       "AmazonElastiCache", "AmazonSageMaker", "AmazonVPC",
+                       "AWSBackup", "AWSKMS", "AWSSecretsManager", "AWSWAF",
+                       "AmazonCloudFront", "AmazonAPIGateway", "AmazonCloudWatch",
+                       "AmazonRoute53", "AmazonECR", "AmazonEBS"]
+
+        region: Código de región AWS.
+            Valores válidos: "us-east-1", "us-west-2", "eu-west-1",
+            "eu-central-1", "ap-southeast-1", "sa-east-1"
+
+        parametros: Filtros adicionales SOLO para servicios con instancias.
+            IMPORTANTE: Solo usa los campos exactos listados abajo.
+            Cualquier otro campo es ignorado.
+
+            Campos válidos por servicio:
+            - AmazonEC2:
+                instanceType: tipo de instancia EC2
+                Ejemplos: "t3.medium", "t3.large", "m5.large", "m5.xlarge"
+
+            - AmazonRDS:
+                instanceType: tipo de instancia RDS
+                Ejemplos: "db.t3.medium", "db.m5.large", "db.m5.xlarge"
+                databaseEngine: motor de base de datos
+                Valores válidos: "MySQL", "PostgreSQL", "MariaDB"
+
+            - AmazonElastiCache:
+                instanceType: tipo de instancia ElastiCache
+                Ejemplos: "cache.t3.medium", "cache.r6g.large"
+
+            - AmazonSageMaker:
+                instanceType: tipo de instancia SageMaker
+                Ejemplos: "ml.t3.medium", "ml.m5.large", "ml.m5.xlarge"
+
+            Ejemplo de uso correcto:
+            parametros={
                 "AmazonEC2": {"instanceType": "m5.large"},
                 "AmazonRDS": {"instanceType": "db.m5.large", "databaseEngine": "MySQL"},
                 "AmazonElastiCache": {"instanceType": "cache.r6g.large"},
                 "AmazonSageMaker": {"instanceType": "ml.m5.xlarge"}
             }
+
+            Para todos los demás servicios NO pases parametros adicionales.
+            El MCP los maneja internamente con los filtros correctos.
+
+    Returns:
+        dict con lista de precios por servicio, región consultada y location name.
     """
     if isinstance(servicios, str):
         try:
@@ -236,12 +296,12 @@ def get_aws_pricing(
 
     location_name = REGION_NAMES.get(region, "US East (N. Virginia)")
 
-    logger.info(f"[MCP] get_aws_pricing | region={region} | location={location_name} | servicios={servicios} | parametros={json.dumps(parametros)}")
+    logger.info(f"[MCP] get_aws_pricing | region={region} | servicios={servicios}")
 
     precios = []
     for servicio in servicios:
-        params_servicio = parametros.get(servicio, {})
-        precio = consultar_precio_servicio(servicio, location_name, params_servicio)
+        params_raw = parametros.get(servicio, {})
+        precio = consultar_precio_servicio(servicio, location_name, params_raw)
         precios.append(precio)
 
     return {
