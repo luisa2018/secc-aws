@@ -31,18 +31,11 @@ def limpiar(texto):
     if not isinstance(texto, str):
         texto = str(texto)
     reemplazos = {
-        '\u2014': '-',
-        '\u2013': '-',
-        '\u2018': "'",
-        '\u2019': "'",
-        '\u201c': '"',
-        '\u201d': '"',
-        '\u2022': '-',
-        '\u00b7': '-',
-        '\u2026': '...',
-        '\u2192': '->',
-        '\u00bb': '>>',
-        '\u00ab': '<<',
+        '\u2014': '-', '\u2013': '-', '\u2018': "'", '\u2019': "'",
+        '\u201c': '"', '\u201d': '"', '\u2022': '-', '\u00b7': '-',
+        '\u2026': '...', '\u2192': '->', '\u00bb': '>>', '\u00ab': '<<',
+        '\u223c': 'aprox.', '\u2248': 'aprox.', '\u00b1': '+/-',
+        '\u00d7': 'x', '\u00f7': '/',
     }
     for car, rep in reemplazos.items():
         texto = texto.replace(car, rep)
@@ -195,68 +188,60 @@ def generar_pdf(data: dict) -> bytes:
         pdf.kv('  % del total',   fmt_pct(s.get('porcentaje_del_total', 0)))
         pdf.ln(1)
 
-    # Servicios propuestos
+    # Servicios propuestos — tabla 4 columnas
     pdf.titulo_seccion(f'Servicios propuestos ({len(servicios)} servicios)')
 
-    # Encabezados de tabla
+    # Encabezados
     pdf.set_fill_color(*InformePDF.FONDO)
     pdf.set_draw_color(*InformePDF.DORADO)
     pdf.set_line_width(0.3)
     pdf.set_font('Helvetica', 'B', 8)
     pdf.set_text_color(*InformePDF.DORADO)
     pdf.set_x(10)
-    pdf.cell(60, 7, 'Servicio',          border=1, fill=True)
-    pdf.cell(55, 7, 'Configuraci\xf3n',  border=1, fill=True)
-    pdf.cell(30, 7, 'Precio unitario',   border=1, fill=True, align='R')
-    pdf.cell(20, 7, 'Unidad',            border=1, fill=True, align='C')
-    pdf.cell(25, 7, 'Costo mensual',     border=1, fill=True, align='R', ln=True)
+    pdf.cell(65, 7, 'Servicio',         border=1, fill=True)
+    pdf.cell(65, 7, 'Configuraci\xf3n', border=1, fill=True)
+    pdf.cell(35, 7, 'Precio unitario',  border=1, fill=True, align='R')
+    pdf.cell(25, 7, 'Costo mensual',    border=1, fill=True, align='R', ln=True)
 
-    # Filas de servicios
+    # Filas
     for i, s in enumerate(servicios):
         fill_color = InformePDF.FONDO if i % 2 == 0 else InformePDF.BLANCO
         pdf.set_fill_color(*fill_color)
         pdf.set_draw_color(220, 220, 220)
         pdf.set_line_width(0.2)
 
-        # Nombre del servicio + justificación debajo
         nombre = limpiar(s.get('servicio_aws', ''))
         justif = limpiar(s.get('justificacion', ''))
         config = limpiar(s.get('configuracion_minima', ''))
         precio_unitario = s.get('precio_unitario', 0)
-        if precio_unitario < 0.01:
-            precio_str = f"${precio_unitario:.4f}"
-        else:
-            precio_str = f"${precio_unitario:.2f}"
         unidad = limpiar(s.get('unidad', ''))
+        if precio_unitario < 0.01:
+            precio_str = f"${precio_unitario:.4f} / {unidad[:15]}"
+        else:
+            precio_str = f"${precio_unitario:.2f} / {unidad[:15]}"
         costo_mensual = fmt_usd(s.get('costo_mensual', 0))
 
-        # Calcular altura de fila según contenido
-        x_start = pdf.get_x()
-        y_start = pdf.get_y()
-
+        # Fila 1 — nombre + config + precio + costo
         pdf.set_x(10)
         pdf.set_font('Helvetica', 'B', 8)
         pdf.set_text_color(*InformePDF.TEXTO)
-        pdf.cell(60, 5, nombre, border='LRT', fill=True)
+        pdf.cell(65, 5, nombre[:40], border='LRT', fill=True)
         pdf.set_font('Helvetica', '', 8)
         pdf.set_text_color(*InformePDF.GRIS)
-        pdf.cell(55, 5, config[:40], border='LRT', fill=True)
+        pdf.cell(65, 5, config[:42], border='LRT', fill=True)
         pdf.set_text_color(*InformePDF.TEXTO)
-        pdf.cell(30, 5, precio_str, border='LRT', fill=True, align='R')
-        pdf.cell(20, 5, unidad[:12], border='LRT', fill=True, align='C')
+        pdf.cell(35, 5, precio_str[:24], border='LRT', fill=True, align='R')
         pdf.set_text_color(*InformePDF.VERDE)
         pdf.set_font('Helvetica', 'B', 8)
         pdf.cell(25, 5, costo_mensual, border='LRT', fill=True, align='R', ln=True)
 
-        # Justificación en segunda línea
+        # Fila 2 — justificacion + resto config
         pdf.set_x(10)
         pdf.set_font('Helvetica', 'I', 7)
         pdf.set_text_color(*InformePDF.GRIS)
-        pdf.cell(60, 4, justif[:45], border='LRB', fill=True)
-        pdf.set_text_color(*InformePDF.GRIS)
-        pdf.cell(55, 4, config[40:80], border='LRB', fill=True)
-        pdf.cell(30, 4, '', border='LRB', fill=True)
-        pdf.cell(20, 4, '', border='LRB', fill=True)
+        pdf.cell(65, 4, justif[:50], border='LRB', fill=True)
+        pdf.cell(65, 4, config[42:84], border='LRB', fill=True)
+        pdf.cell(35, 4, '', border='LRB', fill=True)
         pdf.cell(25, 4, '', border='LRB', fill=True, ln=True)
 
     # Total mensual
@@ -292,8 +277,8 @@ def generar_pdf(data: dict) -> bytes:
         pdf.set_font('Helvetica', 'B', 9)
         pdf.set_text_color(*InformePDF.DORADO)
         pdf.cell(0, 6, limpiar(f"  {p.get('servicio_aws', '')}"), ln=True)
-        pdf.kv('  Modelo',         p.get('modelo_recomendado', ''))
-        pdf.kv('  Justificaci\xf3n',  p.get('justificacion', ''))
+        pdf.kv('  Modelo',          p.get('modelo_recomendado', ''))
+        pdf.kv('  Justificaci\xf3n', p.get('justificacion', ''))
         pdf.ln(1)
 
     # Region recomendada + Motor + Licenciamiento
@@ -307,8 +292,8 @@ def generar_pdf(data: dict) -> bytes:
         pdf.set_font('Helvetica', 'B', 9)
         pdf.set_text_color(*InformePDF.VERDE)
         pdf.cell(0, 6, 'Motor de base de datos recomendado:', ln=True)
-        pdf.kv('  Motor',          region.get('motor_recomendado', ''), InformePDF.VERDE)
-        pdf.kv('  Justificaci\xf3n',  region.get('justificacion_motor', ''))
+        pdf.kv('  Motor',           region.get('motor_recomendado', ''), InformePDF.VERDE)
+        pdf.kv('  Justificaci\xf3n', region.get('justificacion_motor', ''))
 
     ref_lic = region.get('referencia_licenciamiento', {})
     if ref_lic and any([
@@ -363,8 +348,8 @@ def generar_pdf(data: dict) -> bytes:
         for k, v in etiquetas.items():
             pdf.kv(f'  {k}', str(v))
         pdf.ln(2)
-    pdf.kv('AWS Budgets',          bp.get('budgets', ''))
-    pdf.kv('Cost Explorer',        bp.get('cost_explorer', ''))
+    pdf.kv('AWS Budgets',              bp.get('budgets', ''))
+    pdf.kv('Cost Explorer',            bp.get('cost_explorer', ''))
     pdf.kv('Revisi\xf3n peri\xf3dica', bp.get('revision_periodica', ''))
 
     # Limitaciones
