@@ -39,6 +39,8 @@ def execute_cost_calculation(code: str) -> str:
 
 
 SYSTEM_PROMPT = """IMPORTANTE: Responde siempre en español correcto, usando tildes, ñ y todos los caracteres especiales del idioma español.
+NUNCA uses los símbolos ~, ≈, →, × ni ± en el texto del JSON.
+Escribe siempre el valor numérico exacto calculado.
 
 IDENTIDAD:
 Eres un arquitecto cloud senior AWS. Piensas como la calculadora oficial
