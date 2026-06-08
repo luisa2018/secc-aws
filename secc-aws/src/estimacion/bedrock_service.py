@@ -258,6 +258,12 @@ CÁLCULOS FINALES:
   ahorro_well_architected = costo_actual - costo_optimizado (nunca negativo)
   ahorro_alternativa = (costo_mensual_actual - costo_alternativa) * meses
   Este valor es el ahorro TOTAL en el horizonte, no mensual.
+  
+  EVALUACIÓN DE PRESUPUESTO:   
+  porcentaje_del_presupuesto = (costo_horizonte / presupuesto) * 100
+  dentro_presupuesto = costo_horizonte <= presupuesto
+  NUNCA compares costo_mensual vs presupuesto cuando
+  el horizonte es trimestral o anual.
 
 ═══════════════════════════════════════════════════════
 PASO 5 — REGLAS DEL INFORME
