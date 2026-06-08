@@ -25,112 +25,251 @@ REGION_NAMES = {
 }
 
 # Campos dinámicos válidos por servicio — SOLO estos son aceptados desde Bedrock
-# Cualquier otro campo enviado por Bedrock es ignorado
 CAMPOS_DINAMICOS_VALIDOS = {
     "AmazonEC2":         ["instanceType"],
     "AmazonRDS":         ["instanceType", "databaseEngine"],
     "AmazonElastiCache": ["instanceType"],
     "AmazonSageMaker":   ["instanceType"],
+    "AmazonMemoryDB":    ["instanceType"],
+    "AmazonDocDB":       ["instanceType"],
+    "AmazonRedshift":    ["instanceType"],
+    "AmazonMQ":          ["instanceType"],
+    "AmazonMSK":         ["instanceType"],
 }
 
-# Filtros base internos por servicio — el MCP los maneja sin depender de Bedrock
+# Filtros base verificados contra AWS Pricing API real
 FILTROS_BASE = {
+    # CÓMPUTO
     "AmazonEC2": [
         {"field": "operatingSystem", "value": "Linux"},
         {"field": "tenancy",         "value": "Shared"},
         {"field": "capacitystatus",  "value": "Used"},
         {"field": "preInstalledSw",  "value": "NA"},
     ],
-    "AmazonRDS": [
-        {"field": "deploymentOption", "value": "Single-AZ"},
+    "AmazonECS": [
+        {"field": "locationType", "value": "AWS Region"},
     ],
-    "AmazonEBS": [
-        {"field": "volumeApiName", "value": "gp3"},
+    "AmazonEKS": [
+        {"field": "locationType", "value": "AWS Region"},
+        {"field": "eksproducttype", "value": "Clusters"},
     ],
+    "AWSLambda": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AWSFargate": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+
+    # CONTENEDORES
+    "AmazonECR": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+
+    # ALMACENAMIENTO
     "AmazonS3": [
         {"field": "storageClass", "value": "General Purpose"},
         {"field": "volumeType",   "value": "Standard"},
     ],
-    "ElasticLoadBalancing": [
-        {"field": "loadBalancerType", "value": "Application"},
+    "AmazonEFS": [
+        {"field": "storageClass", "value": "General Purpose"},
     ],
-    "AmazonCloudFront": [
-        {"field": "usagetype", "value": "US-DataTransfer-Out-Bytes"},
+    "AmazonFSx": [
+        {"field": "fileSystemType",   "value": "Windows"},
+        {"field": "deploymentOption", "value": "Single-AZ"},
+        {"field": "storageType",      "value": "SSD"},
+    ],
+    "AWSBackup": [
+        {"field": "backup_service", "value": "EBS"},
+        {"field": "storageType",    "value": "AWSBackup-Warm"},
+    ],
+
+    # BASE DE DATOS
+    "AmazonRDS": [
+        {"field": "deploymentOption", "value": "Single-AZ"},
     ],
     "AmazonDynamoDB": [
-        {"field": "usagetype", "value": "WriteRequestUnits"},
-    ],
-    "AWSLambda": [
-        {"field": "group", "value": "AWS-Lambda-Requests"},
-    ],
-    "AmazonAPIGateway": [
-        {"field": "usagetype", "value": "USE1-ApiGatewayHttpRequest"},
+        {"field": "group", "value": "DDB-WriteUnits"},
     ],
     "AmazonElastiCache": [
         {"field": "cacheEngine", "value": "Redis"},
     ],
-    "AWSFargate": [
-        {"field": "group", "value": "AWS-Fargate-vCPU-Hours:perCPU"},
+    "AmazonRedshift": [
+        {"field": "usageFamily", "value": "RA3"},
     ],
-    "AmazonEKS": [
-        {"field": "group", "value": "AmazonEKS-Clusters"},
+    "AmazonDocDB": [
+        {"field": "databaseEngine", "value": "Amazon DocumentDB"},
+    ],
+    "AmazonNeptune": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AmazonMemoryDB": [
+        {"field": "engine", "value": "Redis"},
+    ],
+
+    # RED Y ENTREGA
+    "AmazonVPC": [
+        {"field": "group", "value": "AmazonVPC-NatGateway"},
+    ],
+    "AmazonCloudFront": [
+        {"field": "transferType", "value": "CloudFront to Internet"},
+    ],
+    "AmazonRoute53": [
+        {"field": "routingType", "value": "Standard"},
+    ],
+    "AWSELB": [
+        {"field": "group", "value": "ELB:Balancing"},
+    ],
+    "AWSGlobalAccelerator": [
+        {"field": "trafficDirection", "value": "In"},
+    ],
+    "AWSNetworkFirewall": [
+        {"field": "subcategory", "value": "Endpoint"},
+    ],
+
+    # API Y MENSAJERÍA
+    "AmazonApiGateway": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AmazonAPIGateway": [  # alias
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AWSAppSync": [
+        {"field": "graphqloperation", "value": "Invocation"},
     ],
     "AmazonSNS": [
         {"field": "group", "value": "SNS-Requests"},
     ],
-    "AmazonSQS": [
-        {"field": "group", "value": "SQS-APIRequest"},
-    ],
-    "AmazonCloudWatch": [
-        {"field": "group", "value": "MetricStorage:StdResolution"},
-    ],
-    "AWSSecretsManager": [
-        {"field": "group", "value": "AWSSecretsManager-Secret"},
-    ],
-    "AWSBackup": [
-        {"field": "group", "value": "AWSBackup-BackupStorage"},
-    ],
-    "AWSWAF": [
-        {"field": "group", "value": "AWS-WAF-WebACL"},
-    ],
-    "AmazonRoute53": [
-        {"field": "group", "value": "DNS-Queries"},
-    ],
-    "AWSKMS": [
-        {"field": "group", "value": "AWS-KMS-Keys"},
-    ],
-    "AmazonECR": [
-        {"field": "group", "value": "AmazonECR-TimedStorage-ByteHrs"},
+    "AWSQueueService": [
+        {"field": "group", "value": "SQS-APIRequest-Tier1"},
     ],
     "AmazonKinesis": [
         {"field": "group", "value": "AmazonKinesis-ShardHour"},
     ],
-    "AmazonEventBridge": [
-        {"field": "group", "value": "AmazonEventBridge-Events"},
+    "AmazonMQ": [
+        {"field": "brokerEngine",     "value": "ActiveMQ"},
+        {"field": "deploymentOption", "value": "Single-AZ"},
     ],
-    "AWSStepFunctions": [
-        {"field": "group", "value": "AWSStepFunctions-StateTransitions"},
+    "AmazonMSK": [
+        {"field": "group", "value": "Broker"},
     ],
+    "AWSEvents": [
+        {"field": "eventType", "value": "Custom Event"},
+    ],
+    "AmazonStates": [
+        {"field": "group", "value": "SFN-StateTransitions"},
+    ],
+
+    # IA Y ML
     "AmazonSageMaker": [
-        {"field": "group", "value": "SageMaker-Instances"},
+        {"field": "component", "value": "Hosting"},
     ],
     "AmazonBedrock": [
-        {"field": "group", "value": "AmazonBedrock-InputTokens"},
+        {"field": "inferenceType", "value": "Input tokens"},
     ],
-    "AmazonVPC": [
-        {"field": "group", "value": "AmazonVPC-NatGateway-Hours"},
+    "AmazonRekognition": [
+        {"field": "group", "value": "Rekognition Image API Requests"},
+    ],
+    "AmazonTextract": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AmazonPolly": [
+        {"field": "engine", "value": "Standard"},
+    ],
+    "AmazonLex": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AmazonKendra": [
+        {"field": "group", "value": "Kendra-Enterprise-Additional-Capacity"},
+    ],
+
+    # SEGURIDAD
+    "awskms": [
+        {"field": "group", "value": "awskms-APIRequest-All"},
+    ],
+    "AWSKMS": [  # alias
+        {"field": "group", "value": "awskms-APIRequest-All"},
+    ],
+    "awswaf": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AWSWAF": [  # alias
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AWSSecretsManager": [
+        {"field": "group", "value": "AWSSecretsManager-Secret"},
+    ],
+    "AWSShield": [
+        {"field": "resourceType", "value": "LoadBalancing"},
+    ],
+    "AWSCertificateManager": [
+        {"field": "type", "value": "Private"},
+    ],
+    "AWSDirectoryService": [
+        {"field": "directorySize", "value": "Standard"},
+        {"field": "directoryType", "value": "Shared Microsoft AD"},
+    ],
+    "AWSSecurityHub": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AmazonGuardDuty": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AmazonInspectorV2": [
+        {"field": "scanType", "value": "Automated re-scan"},
+    ],
+    "AmazonCognito": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+
+    # MONITOREO
+    "AmazonCloudWatch": [
+        {"field": "group", "value": "Event-CloudWatchLog"},
+    ],
+    "AWSCloudTrail": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AWSConfig": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AWSSystemsManager": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AWSXRay": [
+        {"field": "group", "value": "Traces Scanned"},
+    ],
+
+    # DATOS
+    "AWSGlue": [
+        {"field": "group", "value": "Data catalog requests"},
+    ],
+    "AmazonAthena": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+
+    # DESARROLLO
+    "AWSCodePipeline": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "CodeBuild": [
+        {"field": "operatingSystem", "value": "Linux"},
+    ],
+    "AWSAmplify": [
+        {"field": "locationType", "value": "AWS Region"},
+    ],
+    "AWSAppRunner": [
+        {"field": "type", "value": "vCPU-hours"},
     ],
 }
 
-# Servicios que no usan filtro de location
-SIN_FILTRO_LOCATION = {"AmazonDynamoDB"}
+# Servicios sin filtro de location porque son globales o tienen estructura diferente
+SIN_FILTRO_LOCATION = {
+    "AmazonCloudFront",
+    "AWSGlobalAccelerator",
+    "AWSShield",
+}
 
 
 def filtrar_parametros_validos(service_code, parametros_raw):
-    """
-    Solo acepta los campos dinámicos válidos para cada servicio.
-    Ignora cualquier campo inventado por Bedrock.
-    """
     campos_validos = CAMPOS_DINAMICOS_VALIDOS.get(service_code, [])
     return {k: v for k, v in parametros_raw.items() if k in campos_validos}
 
@@ -153,7 +292,6 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
                 "Value": f["value"]
             })
 
-        # Solo agregar parámetros dinámicos válidos
         if parametros_dinamicos:
             parametros_limpios = filtrar_parametros_validos(service_code, parametros_dinamicos)
             for field, value in parametros_limpios.items():
@@ -235,52 +373,45 @@ def get_aws_pricing(
 
     Args:
         servicios: Lista de service codes AWS oficiales.
-            Ejemplos: ["AmazonEC2", "AmazonRDS", "AmazonS3", "AmazonEKS",
-                       "AmazonElastiCache", "AmazonSageMaker", "AmazonVPC",
-                       "AWSBackup", "AWSKMS", "AWSSecretsManager", "AWSWAF",
-                       "AmazonCloudFront", "AmazonAPIGateway", "AmazonCloudWatch",
-                       "AmazonRoute53", "AmazonECR", "AmazonEBS"]
+            Usa EXACTAMENTE estos códigos:
+            CÓMPUTO: AmazonEC2, AmazonECS, AmazonEKS, AWSLambda, AWSFargate
+            CONTENEDORES: AmazonECR
+            ALMACENAMIENTO: AmazonS3, AmazonEFS, AmazonFSx, AWSBackup
+            BASE DE DATOS: AmazonRDS, AmazonDynamoDB, AmazonElastiCache,
+              AmazonRedshift, AmazonDocDB, AmazonNeptune, AmazonMemoryDB
+            RED: AmazonVPC, AmazonCloudFront, AmazonRoute53, AWSELB,
+              AWSGlobalAccelerator, AWSNetworkFirewall
+            API Y MENSAJERÍA: AmazonApiGateway, AWSAppSync, AmazonSNS,
+              AWSQueueService, AmazonKinesis, AmazonMQ, AmazonMSK,
+              AWSEvents, AmazonStates
+            IA Y ML: AmazonSageMaker, AmazonBedrock, AmazonRekognition,
+              AmazonTextract, AmazonPolly, AmazonLex, AmazonKendra
+            SEGURIDAD: awskms, awswaf, AWSSecretsManager, AWSShield,
+              AWSCertificateManager, AWSDirectoryService, AWSSecurityHub,
+              AmazonGuardDuty, AmazonInspectorV2, AmazonCognito
+            MONITOREO: AmazonCloudWatch, AWSCloudTrail, AWSConfig,
+              AWSSystemsManager, AWSXRay
+            DATOS: AWSGlue, AmazonAthena
+            DESARROLLO: AWSCodePipeline, CodeBuild, AWSAmplify, AWSAppRunner
+            NOTA: awswaf y awskms van en minúsculas obligatoriamente.
 
         region: Código de región AWS.
             Valores válidos: "us-east-1", "us-west-2", "eu-west-1",
             "eu-central-1", "ap-southeast-1", "sa-east-1"
 
         parametros: Filtros adicionales SOLO para servicios con instancias.
-            IMPORTANTE: Solo usa los campos exactos listados abajo.
-            Cualquier otro campo es ignorado.
-
             Campos válidos por servicio:
-            - AmazonEC2:
-                instanceType: tipo de instancia EC2
-                Ejemplos: "t3.medium", "t3.large", "m5.large", "m5.xlarge"
-
-            - AmazonRDS:
-                instanceType: tipo de instancia RDS
-                Ejemplos: "db.t3.medium", "db.m5.large", "db.m5.xlarge"
-                databaseEngine: motor de base de datos
-                Valores válidos: "MySQL", "PostgreSQL", "MariaDB"
-
-            - AmazonElastiCache:
-                instanceType: tipo de instancia ElastiCache
-                Ejemplos: "cache.t3.medium", "cache.r6g.large"
-
-            - AmazonSageMaker:
-                instanceType: tipo de instancia SageMaker
-                Ejemplos: "ml.t3.medium", "ml.m5.large", "ml.m5.xlarge"
-
-            Ejemplo de uso correcto:
-            parametros={
-                "AmazonEC2": {"instanceType": "m5.large"},
-                "AmazonRDS": {"instanceType": "db.m5.large", "databaseEngine": "MySQL"},
-                "AmazonElastiCache": {"instanceType": "cache.r6g.large"},
-                "AmazonSageMaker": {"instanceType": "ml.m5.xlarge"}
-            }
-
+            - AmazonEC2: instanceType (ej: "m5.large", "m5.xlarge")
+            - AmazonRDS: instanceType (ej: "db.m5.large"), databaseEngine ("MySQL" o "PostgreSQL")
+            - AmazonElastiCache: instanceType (ej: "cache.r6g.large")
+            - AmazonSageMaker: instanceType (ej: "ml.m5.xlarge")
+            - AmazonMemoryDB: instanceType (ej: "db.r6g.large")
+            - AmazonDocDB: instanceType (ej: "db.r6g.large")
+            - AmazonRedshift: instanceType (ej: "ra3.large")
             Para todos los demás servicios NO pases parametros adicionales.
-            El MCP los maneja internamente con los filtros correctos.
 
     Returns:
-        dict con lista de precios por servicio, región consultada y location name.
+        dict con lista de precios por servicio, región y location name.
     """
     if isinstance(servicios, str):
         try:
