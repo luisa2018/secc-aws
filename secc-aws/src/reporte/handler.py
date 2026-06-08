@@ -197,19 +197,79 @@ def generar_pdf(data: dict) -> bytes:
 
     # Servicios propuestos
     pdf.titulo_seccion(f'Servicios propuestos ({len(servicios)} servicios)')
+
+    # Encabezados de tabla
+    pdf.set_fill_color(*InformePDF.FONDO)
+    pdf.set_draw_color(*InformePDF.DORADO)
+    pdf.set_line_width(0.3)
+    pdf.set_font('Helvetica', 'B', 8)
+    pdf.set_text_color(*InformePDF.DORADO)
+    pdf.set_x(10)
+    pdf.cell(60, 7, 'Servicio',          border=1, fill=True)
+    pdf.cell(55, 7, 'Configuraci\xf3n',  border=1, fill=True)
+    pdf.cell(30, 7, 'Precio unitario',   border=1, fill=True, align='R')
+    pdf.cell(20, 7, 'Unidad',            border=1, fill=True, align='C')
+    pdf.cell(25, 7, 'Costo mensual',     border=1, fill=True, align='R', ln=True)
+
+    # Filas de servicios
     for i, s in enumerate(servicios):
-        pdf.set_x(10)
-        pdf.set_font('Helvetica', 'B', 9)
-        pdf.set_text_color(*InformePDF.DORADO)
         fill_color = InformePDF.FONDO if i % 2 == 0 else InformePDF.BLANCO
         pdf.set_fill_color(*fill_color)
-        pdf.cell(0, 7, limpiar(f"  {s.get('servicio_aws', '')}"), ln=True, fill=True)
-        pdf.kv('  Configuraci\xf3n',  s.get('configuracion_minima', ''))
-        pdf.kv('  Justificaci\xf3n',  s.get('justificacion', ''))
-        precio_str = f"${s.get('precio_unitario', 0):.4f} / {limpiar(s.get('unidad', ''))}"
-        pdf.kv('  Precio unitario', precio_str)
-        pdf.kv('  Costo mensual',   fmt_usd(s.get('costo_mensual', 0)), InformePDF.VERDE)
-        pdf.ln(2)
+        pdf.set_draw_color(220, 220, 220)
+        pdf.set_line_width(0.2)
+
+        # Nombre del servicio + justificación debajo
+        nombre = limpiar(s.get('servicio_aws', ''))
+        justif = limpiar(s.get('justificacion', ''))
+        config = limpiar(s.get('configuracion_minima', ''))
+        precio_unitario = s.get('precio_unitario', 0)
+        if precio_unitario < 0.01:
+            precio_str = f"${precio_unitario:.4f}"
+        else:
+            precio_str = f"${precio_unitario:.2f}"
+        unidad = limpiar(s.get('unidad', ''))
+        costo_mensual = fmt_usd(s.get('costo_mensual', 0))
+
+        # Calcular altura de fila según contenido
+        x_start = pdf.get_x()
+        y_start = pdf.get_y()
+
+        pdf.set_x(10)
+        pdf.set_font('Helvetica', 'B', 8)
+        pdf.set_text_color(*InformePDF.TEXTO)
+        pdf.cell(60, 5, nombre, border='LRT', fill=True)
+        pdf.set_font('Helvetica', '', 8)
+        pdf.set_text_color(*InformePDF.GRIS)
+        pdf.cell(55, 5, config[:40], border='LRT', fill=True)
+        pdf.set_text_color(*InformePDF.TEXTO)
+        pdf.cell(30, 5, precio_str, border='LRT', fill=True, align='R')
+        pdf.cell(20, 5, unidad[:12], border='LRT', fill=True, align='C')
+        pdf.set_text_color(*InformePDF.VERDE)
+        pdf.set_font('Helvetica', 'B', 8)
+        pdf.cell(25, 5, costo_mensual, border='LRT', fill=True, align='R', ln=True)
+
+        # Justificación en segunda línea
+        pdf.set_x(10)
+        pdf.set_font('Helvetica', 'I', 7)
+        pdf.set_text_color(*InformePDF.GRIS)
+        pdf.cell(60, 4, justif[:45], border='LRB', fill=True)
+        pdf.set_text_color(*InformePDF.GRIS)
+        pdf.cell(55, 4, config[40:80], border='LRB', fill=True)
+        pdf.cell(30, 4, '', border='LRB', fill=True)
+        pdf.cell(20, 4, '', border='LRB', fill=True)
+        pdf.cell(25, 4, '', border='LRB', fill=True, ln=True)
+
+    # Total mensual
+    pdf.set_fill_color(*InformePDF.FONDO)
+    pdf.set_draw_color(*InformePDF.DORADO)
+    pdf.set_line_width(0.3)
+    pdf.set_x(10)
+    pdf.set_font('Helvetica', 'B', 8)
+    pdf.set_text_color(*InformePDF.DORADO)
+    pdf.cell(165, 7, 'Total mensual', border=1, fill=True, align='R')
+    pdf.set_text_color(*InformePDF.TEXTO)
+    pdf.cell(25, 7, fmt_usd(costo_est.get('costo_mensual', 0)), border=1, fill=True, align='R', ln=True)
+    pdf.ln(3)
 
     # Well-Architected
     pdf.titulo_seccion('AWS Well-Architected - Optimizaci\xf3n de costos')
