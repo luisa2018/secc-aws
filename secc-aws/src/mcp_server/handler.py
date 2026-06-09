@@ -37,6 +37,16 @@ CAMPOS_DINAMICOS_VALIDOS = {
     "AmazonMSK":         ["instanceType"],
 }
 
+# Servicios sin precio en la AWS Pricing API pública
+# El agente usa su conocimiento propio para estos
+SIN_PRECIO_EN_API = {
+    "AmazonEKS",      # Solo AutoMode en la API, no cluster estándar
+    "AWSBackup",      # Solo transferencia cross-region, no backup estándar
+    "AmazonVPC",      # NAT Gateway no está en la API
+    "AmazonRoute53",  # Hosted zones no están en la API
+    "AmazonCloudWatch", # Métricas estándar no están en la API
+}
+
 # Filtros base verificados contra AWS Pricing API real
 FILTROS_BASE = {
     # CÓMPUTO
@@ -48,10 +58,6 @@ FILTROS_BASE = {
     ],
     "AmazonECS": [
         {"field": "locationType", "value": "AWS Region"},
-    ],
-    "AmazonEKS": [
-        {"field": "locationType", "value": "AWS Region"},
-        {"field": "eksproducttype", "value": "Clusters"},
     ],
     "AWSLambda": [
         {"field": "locationType", "value": "AWS Region"},
@@ -78,10 +84,6 @@ FILTROS_BASE = {
         {"field": "deploymentOption", "value": "Single-AZ"},
         {"field": "storageType",      "value": "SSD"},
     ],
-    "AWSBackup": [
-        {"field": "backup_service", "value": "EBS"},
-        {"field": "storageType",    "value": "AWSBackup-Warm"},
-    ],
 
     # BASE DE DATOS
     "AmazonRDS": [
@@ -90,8 +92,10 @@ FILTROS_BASE = {
     "AmazonDynamoDB": [
         {"field": "group", "value": "DDB-WriteUnits"},
     ],
+    # ElastiCache — filtro por usagetype para evitar ExtendedSupport
     "AmazonElastiCache": [
         {"field": "cacheEngine", "value": "Redis"},
+        {"field": "usagetype",   "value": "NodeUsage:cache.r6g.large"},
     ],
     "AmazonRedshift": [
         {"field": "usageFamily", "value": "RA3"},
@@ -107,15 +111,12 @@ FILTROS_BASE = {
     ],
 
     # RED Y ENTREGA
-    "AmazonVPC": [
-        {"field": "group", "value": "AmazonVPC-NatGateway"},
-    ],
+    # AmazonVPC — NAT Gateway no está en la API, el agente usa conocimiento propio
+    # AmazonCloudFront — sin filtro de location, solo transferType
     "AmazonCloudFront": [
         {"field": "transferType", "value": "CloudFront to Internet"},
     ],
-    "AmazonRoute53": [
-        {"field": "routingType", "value": "Standard"},
-    ],
+    # AmazonRoute53 — hosted zones no están en la API, el agente usa conocimiento propio
     "AWSELB": [
         {"field": "group", "value": "ELB:Balancing"},
     ],
@@ -127,11 +128,12 @@ FILTROS_BASE = {
     ],
 
     # API Y MENSAJERÍA
+    # AmazonApiGateway — usagetype correcto para REST API calls
     "AmazonApiGateway": [
-        {"field": "locationType", "value": "AWS Region"},
+        {"field": "usagetype", "value": "USE1-ApiGatewayRequest"},
     ],
-    "AmazonAPIGateway": [  # alias
-        {"field": "locationType", "value": "AWS Region"},
+    "AmazonAPIGateway": [  # alias mayúsculas
+        {"field": "usagetype", "value": "USE1-ApiGatewayRequest"},
     ],
     "AWSAppSync": [
         {"field": "graphqloperation", "value": "Invocation"},
@@ -160,6 +162,7 @@ FILTROS_BASE = {
     ],
 
     # IA Y ML
+    # AmazonSageMaker — instanceType debe incluir sufijo -Hosting
     "AmazonSageMaker": [
         {"field": "component", "value": "Hosting"},
     ],
@@ -189,11 +192,12 @@ FILTROS_BASE = {
     "AWSKMS": [  # alias
         {"field": "group", "value": "awskms-APIRequest-All"},
     ],
+    # awswaf — group correcto para WebACL
     "awswaf": [
-        {"field": "locationType", "value": "AWS Region"},
+        {"field": "group", "value": "Web ACL (Shield Protected)"},
     ],
     "AWSWAF": [  # alias
-        {"field": "locationType", "value": "AWS Region"},
+        {"field": "group", "value": "Web ACL (Shield Protected)"},
     ],
     "AWSSecretsManager": [
         {"field": "group", "value": "AWSSecretsManager-Secret"},
@@ -222,9 +226,7 @@ FILTROS_BASE = {
     ],
 
     # MONITOREO
-    "AmazonCloudWatch": [
-        {"field": "group", "value": "Event-CloudWatchLog"},
-    ],
+    # AmazonCloudWatch — métricas estándar no están en la API
     "AWSCloudTrail": [
         {"field": "locationType", "value": "AWS Region"},
     ],
@@ -261,20 +263,58 @@ FILTROS_BASE = {
     ],
 }
 
-# Servicios sin filtro de location porque son globales o tienen estructura diferente
+# Servicios sin filtro de location porque son globales
 SIN_FILTRO_LOCATION = {
     "AmazonCloudFront",
     "AWSGlobalAccelerator",
     "AWSShield",
+    "AmazonDynamoDB",
 }
 
 
 def filtrar_parametros_validos(service_code, parametros_raw):
+    """Solo acepta campos dinámicos válidos. Ignora cualquier campo inventado por Bedrock."""
     campos_validos = CAMPOS_DINAMICOS_VALIDOS.get(service_code, [])
     return {k: v for k, v in parametros_raw.items() if k in campos_validos}
 
 
+def ajustar_instancetype_sagemaker(service_code, parametros_limpios):
+    """
+    SageMaker requiere instanceType con sufijo -Hosting.
+    Ej: ml.m5.xlarge → ml.m5.xlarge-Hosting
+    """
+    if service_code == "AmazonSageMaker" and "instanceType" in parametros_limpios:
+        instance = parametros_limpios["instanceType"]
+        if not instance.endswith("-Hosting"):
+            parametros_limpios["instanceType"] = f"{instance}-Hosting"
+    return parametros_limpios
+
+
+def ajustar_usagetype_elasticache(service_code, parametros_limpios, filtros_base):
+    """
+    ElastiCache requiere usagetype específico para evitar ExtendedSupport.
+    Reemplaza el usagetype del filtro base con el instanceType correcto.
+    """
+    if service_code == "AmazonElastiCache" and "instanceType" in parametros_limpios:
+        instance = parametros_limpios.pop("instanceType")
+        # Actualizar el filtro base de usagetype con la instancia correcta
+        for f in filtros_base:
+            if f["Field"] == "usagetype":
+                f["Value"] = f"NodeUsage:{instance}"
+    return filtros_base, parametros_limpios
+
+
 def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=None):
+    # Servicios sin precio en la API — retornar 0 para que el agente use conocimiento propio
+    if service_code in SIN_PRECIO_EN_API:
+        logger.info(f"[MCP] {service_code} | sin precio en API — el agente usa conocimiento propio")
+        return {
+            "servicio":        service_code,
+            "precio_unitario": 0.0,
+            "unidad":          "N/A",
+            "descripcion":     "Precio no disponible en AWS Price List API. Usar tarifa oficial conocida."
+        }
+
     try:
         pricing_filters = []
 
@@ -294,6 +334,14 @@ def consultar_precio_servicio(service_code, location_name, parametros_dinamicos=
 
         if parametros_dinamicos:
             parametros_limpios = filtrar_parametros_validos(service_code, parametros_dinamicos)
+            parametros_limpios = ajustar_instancetype_sagemaker(service_code, parametros_limpios)
+
+            # Ajuste especial ElastiCache
+            if service_code == "AmazonElastiCache":
+                pricing_filters, parametros_limpios = ajustar_usagetype_elasticache(
+                    service_code, parametros_limpios, pricing_filters
+                )
+
             for field, value in parametros_limpios.items():
                 pricing_filters.append({
                     "Type": "TERM_MATCH",
@@ -405,10 +453,12 @@ def get_aws_pricing(
             - AmazonRDS: instanceType (ej: "db.m5.large"), databaseEngine ("MySQL" o "PostgreSQL")
             - AmazonElastiCache: instanceType (ej: "cache.r6g.large")
             - AmazonSageMaker: instanceType (ej: "ml.m5.xlarge")
-            - AmazonMemoryDB: instanceType (ej: "db.r6g.large")
-            - AmazonDocDB: instanceType (ej: "db.r6g.large")
-            - AmazonRedshift: instanceType (ej: "ra3.large")
             Para todos los demás servicios NO pases parametros adicionales.
+
+        NOTA: Los siguientes servicios no tienen precio en la AWS Price List API
+        y retornarán precio_unitario=0. El agente debe usar su conocimiento de
+        las tarifas oficiales de aws.amazon.com/pricing para calcular su costo:
+        AmazonEKS, AWSBackup, AmazonVPC, AmazonRoute53, AmazonCloudWatch.
 
     Returns:
         dict con lista de precios por servicio, región y location name.
