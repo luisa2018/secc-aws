@@ -68,7 +68,7 @@ FILTROS_BASE = {
 
     # CONTENEDORES
     "AmazonECR": [
-        {"field": "locationType", "value": "AWS Region"},
+        {"field": "usagetype", "value": "TimedStorage-ByteHrs"},
     ],
 
     # ALMACENAMIENTO

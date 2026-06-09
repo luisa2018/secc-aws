@@ -68,9 +68,14 @@ REGLAS DE NEGOCIO:
   tipo_base_datos = mixta: RDS MySQL + RDS PostgreSQL
     NUNCA Aurora sin solicitud explicita del usuario.
     NUNCA DynamoDB cuando tipo_base_datos = mixta.
-  ubicacion_usuarios: elige la region mas cercana y economica.
+    ubicacion_usuarios: elige la region segun estos valores:
+    global:         us-east-1 como primaria + CloudFront global
+    estados_unidos: us-east-1
+    latinoamerica:  sa-east-1
+    europa:         eu-west-1 o eu-central-1
+    asia:           ap-southeast-1
+    NUNCA sa-east-1 cuando ubicacion_usuarios = global.
     NUNCA us-east-1 cuando ubicacion_usuarios = latinoamerica.
-    NUNCA region de continente cuando ubicacion_usuarios = global.
 
 VALIDACION - antes de continuar verifica:
   expone_api_publica = true: AmazonApiGateway + awswaf
@@ -109,7 +114,10 @@ IDENTIFICACION DE SERVICIOS:
 ###########################################################
 # INSTRUCCION 2 - CONSULTAR PRECIOS AL MCP
 ###########################################################
-Invoca get_aws_pricing UNA SOLA VEZ con todos los servicios identificados.
+CRITICO: Invoca get_aws_pricing EXACTAMENTE UNA SOLA VEZ.
+NUNCA hagas una segunda llamada al MCP aunque falten precios.
+Si un servicio retorna 0 usa tu conocimiento propio.
+NUNCA repitas la llamada para obtener precios faltantes.
 Pasa instanceType para EC2, RDS, ElastiCache y SageMaker:
 
   get_aws_pricing(
