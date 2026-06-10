@@ -37,16 +37,16 @@ CAMPOS_DINAMICOS_VALIDOS = {
 }
 
 SIN_PRECIO_EN_API = {
-    "AmazonEKS",        # Solo AutoMode en la API, no cluster estandar
-    "AWSBackup",        # Solo transferencia cross-region, no backup estandar
-    "AmazonVPC",        # NAT Gateway no esta en la API
-    "AmazonRoute53",    # Hosted zones no estan en la API
-    "AmazonCloudWatch", # Metricas estandar no estan en la API
+    "AmazonEKS",        # Solo AutoMode en la API, no cluster estandar $0.10/hr
+    "AWSBackup",        # Filtros de storage estandar sin resultados en la API
+    "AmazonVPC",        # NAT Gateway no esta en la API $0.045/hr + $0.045/GB
+    "AmazonRoute53",    # Hosted zones no estan en la API $0.50/zona
     "AWSFargate",       # Sin resultados en la API
-    "AWSLambda",        # Solo Managed Instances en la API, no funciones serverless
-    "AmazonCognito",    # Solo RPS-Month en la API, no MAU estandar
-    "AmazonCloudFront", # Sin resultados con filtros disponibles
+    "AWSLambda",        # Precio por GB-second no disponible con filtros (usar $0.0000166667/GB-s)
+    "AmazonCognito",    # Solo RPS-Month en la API, no MAU $0.0055
+    "AmazonCloudFront", # Transferencia de datos no disponible en la API $0.0085/GB
     "AmazonECS",        # Solo Managed Instances en la API, no tareas ECS
+    "AmazonSNS",        # Sin resultados con ninguno de los filtros disponibles $0.50/millon
 }
 
 FILTROS_BASE = {
@@ -122,9 +122,6 @@ FILTROS_BASE = {
     ],
     "AWSAppSync": [
         {"field": "usagetype", "value": "USE1-GraphQLNotification"},
-    ],
-    "AmazonSNS": [
-        {"field": "group", "value": "SNS-Requests"},
     ],
     "AWSQueueService": [
         {"field": "group", "value": "SQS-APIRequest-Tier1"},
@@ -206,6 +203,9 @@ FILTROS_BASE = {
     ],
 
     # MONITOREO
+    "AmazonCloudWatch": [
+        {"field": "usagetype", "value": "USE1-TimedStorage-ByteHrs"},  # $0.03/GB-Mo log storage
+    ],
     "AWSCloudTrail": [
         {"field": "usagetype", "value": "USE1-DataEventsRecorded"},
     ],
@@ -423,8 +423,15 @@ def get_aws_pricing(
         NOTA: Los siguientes servicios no tienen precio en la AWS Price List API
         y retornaran precio_unitario=0. El agente debe usar su conocimiento de
         las tarifas oficiales de aws.amazon.com/pricing para calcular su costo:
-        AmazonEKS, AWSBackup, AmazonVPC, AmazonRoute53, AmazonCloudWatch,
-        AWSFargate, AWSLambda, AmazonCognito, AmazonCloudFront, AmazonECS.
+        AmazonEKS ($0.10/hr cluster), AWSBackup ($0.05/GB-Mo),
+        AmazonVPC ($0.045/hr + $0.045/GB NAT Gateway),
+        AmazonRoute53 ($0.50/zona hosteada),
+        AWSFargate ($0.04048/vCPU-hr + $0.004445/GB-hr),
+        AWSLambda ($0.0000166667/GB-second + $0.20/millon invocaciones),
+        AmazonCognito ($0.0055/MAU primeros 50K),
+        AmazonCloudFront ($0.0085/GB primeros 10TB),
+        AmazonECS (precio por tarea segun vCPU y memoria),
+        AmazonSNS ($0.50/millon notificaciones HTTP/S).
 
     Returns:
         dict con lista de precios por servicio, region y location name.
