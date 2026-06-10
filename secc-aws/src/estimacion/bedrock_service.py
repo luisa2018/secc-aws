@@ -68,14 +68,12 @@ REGLAS DE NEGOCIO:
   tipo_base_datos = mixta: RDS MySQL + RDS PostgreSQL
     NUNCA Aurora sin solicitud explicita del usuario.
     NUNCA DynamoDB cuando tipo_base_datos = mixta.
-    ubicacion_usuarios: elige la region segun estos valores:
-    global:         us-east-1 como primaria + CloudFront global
+  ubicacion_usuarios: elige la region segun estos valores:
+    global:         us-east-1
     estados_unidos: us-east-1
-    latinoamerica:  sa-east-1
+    latinoamerica:  us-east-1
     europa:         eu-west-1 o eu-central-1
     asia:           ap-southeast-1
-    NUNCA sa-east-1 cuando ubicacion_usuarios = global.
-    NUNCA us-east-1 cuando ubicacion_usuarios = latinoamerica.
 
 VALIDACION - antes de continuar verifica:
   expone_api_publica = true: AmazonApiGateway + awswaf
@@ -196,7 +194,9 @@ CALCULOS FINALES:
   costo_horizonte = costo_mensual * meses
   porcentaje_presupuesto = (costo_horizonte / presupuesto del USER_PROMPT) * 100
   dentro_presupuesto     = costo_horizonte <= presupuesto
-  ahorro_well_architected = nunca negativo
+  ahorro_estimado_usd NUNCA puede ser mayor que costo_mensual * 0.30
+  costo_optimizado = costo_mensual - ahorro_estimado_usd
+  costo_optimizado NUNCA puede ser negativo ni cero.
   ahorro_alternativa = (costo_mensual - costo_alternativa) * meses
 
   Una fila por recurso con precio distinto en servicios[].
