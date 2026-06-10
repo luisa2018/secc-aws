@@ -109,12 +109,16 @@ IDENTIFICACION DE SERVICIOS:
   NUNCA combines dos servicios en una sola entidad.
   NUNCA uses el nombre de un servicio para describir la funcion de otro.
 
+CORROBORACION DE SERVICIOS:
+  Antes de llamar al MCP verifica que cada servicio propuesto
+  use EXACTAMENTE un codigo de la lista CODIGOS OFICIALES AWS PRICING API.
+  NUNCA inventes codigos de servicio.
+
 ###########################################################
 # INSTRUCCION 2 - CONSULTAR PRECIOS AL MCP
 ###########################################################
 CRITICO: Invoca get_aws_pricing EXACTAMENTE UNA SOLA VEZ.
 NUNCA hagas una segunda llamada al MCP aunque falten precios.
-Si un servicio retorna 0 usa tu conocimiento propio.
 NUNCA repitas la llamada para obtener precios faltantes.
 Pasa instanceType para EC2, RDS, ElastiCache y SageMaker:
 
@@ -131,77 +135,58 @@ Pasa instanceType para EC2, RDS, ElastiCache y SageMaker:
 
 Si el MCP retorna precio_unitario=0 para un servicio:
   Usa la tarifa oficial que conoces de aws.amazon.com/pricing.
-  Registralo en limitaciones_estimado.
-  NUNCA dejes un servicio en cero ni lo omitas.
+  Registralo en limitaciones_estimado indicando que el precio
+  fue tomado de tarifas oficiales conocidas y no del MCP.
+  NUNCA dejes un servicio sin costo ni lo omitas del informe.
 
 ###########################################################
 # INSTRUCCION 3 - CALCULAR COSTOS
 ###########################################################
-CONSTANTES TECNICAS AWS:
+El MCP ya retorno el precio_unitario de cada servicio
+y los que llegaron en 0 ya fueron resueltos con tarifas
+oficiales en la INSTRUCCION 2.
+Ejecuta estos tres pasos en orden:
+
+PASO 1 - COSTO MENSUAL POR SERVICIO:
+  Calcula siempre el costo mensual de cada servicio
+  usando el precio_unitario retornado por el MCP
+  y el uso estimado del escenario del USER_PROMPT.
   horas_mes = 730
-  meses = horizonte_tiempo del USER_PROMPT (mensual=1, trimestral=3, anual=12)
 
-PRECIOS RESERVED - si plazo_compromiso del USER_PROMPT = 1_anio o 3_anios:
-  EC2 Reserved 1 anio: * 0.60  |  3 anios: * 0.40
-  RDS Reserved 1 anio: * 0.65  |  3 anios: * 0.48
-  ElastiCache 1 anio:  * 0.65  |  3 anios: * 0.45
-  SageMaker 3 anios:   * 0.50
+  RESERVED - si plazo_compromiso del USER_PROMPT = 1_anio o 3_anios:
+    EC2: * 0.60 / * 0.40
+    RDS: * 0.65 / * 0.48
+    ElastiCache: * 0.65 / * 0.45
+    SageMaker: * 0.50
 
-FORMULAS POR TIPO:
-  Instancia (EC2, ElastiCache, SageMaker):
-    costo = precio_hora * horas_mes * cantidad
+  MULTI-AZ - si multi_az = true del USER_PROMPT:
+    RDS: precio_unitario * 2
+    ElastiCache: precio_unitario * 2
+    EKS nodos: sin costo adicional
+    NAT Gateway: precio_unitario * cantidad_az
 
-  RDS (instancia + almacenamiento):
-    costo = (precio_hora * horas_mes) + (precio_gb * gb_storage)
-    gb_storage viene de volumen_datos_inicial del USER_PROMPT
-    Multi-AZ RDS = precio_hora * 2 (instancia primaria + standby)
-
-  Almacenamiento (S3, EBS, Backup):
-    costo = precio_gb * gb_total
-    gb_total viene de almacenamiento_archivos del USER_PROMPT
+  AUTO SCALING - solo si auto_scaling = true Y ambiente = produccion:
+    ligera: * 1.2  |  media: * 1.5  |  alta: * 2.0
 
   EKS:
-    Plano de control = 0.10 * horas_mes -- fila separada en servicios[]
-    Nodos = calcular como EC2 independiente -- fila separada en servicios[]
+    Plano de control: fila separada en servicios[]
+    Nodos: fila separada en servicios[] calculada como EC2
 
-  NAT Gateway:
-    gb_procesados viene de transferencia_mensual del USER_PROMPT
-    costo = (0.045 * horas_mes * cantidad_az) + (0.045 * gb_procesados)
+PASO 2 - COSTO MENSUAL TOTAL:
+  costo_mensual = suma de costo_mensual de todos los servicios
 
-  Por request (ApiGateway, Lambda):
-    costo = (requests_mes / 1000000) * precio_por_millon
-
-  Por unidad fija (Route53, awswaf, awskms, SecretsManager):
-    costo = precio_unidad * cantidad
-
-  Backup:
-    gb = volumen_datos_inicial + almacenamiento_archivos del USER_PROMPT
-    costo = precio_gb * gb
-    Si cumplimiento = GDPR/HIPAA: + precio_gb * gb * 0.5 (cross-region)
-
-MULTI-AZ - si multi_az = true del USER_PROMPT razona el impacto por servicio:
-  RDS: instancia standby en AZ separada = precio_hora * 2
-  ElastiCache: replica en AZ separada = precio_hora * 2
-  EKS nodos: distribucion entre AZs sin costo adicional
-  NAT Gateway: una instancia por AZ = precio * cantidad_az
-
-AUTO SCALING - solo si auto_scaling = true Y ambiente = produccion del USER_PROMPT:
-  Aplica factor segun intensidad_procesamiento del USER_PROMPT:
-  ligera: * 1.2  |  media: * 1.5  |  alta: * 2.0
-
-CALCULOS FINALES:
-  costo_mensual   = suma de todos los servicios
+PASO 3 - COSTO AL HORIZONTE:
+  meses = horizonte_tiempo del USER_PROMPT (mensual=1, trimestral=3, anual=12)
   costo_horizonte = costo_mensual * meses
   porcentaje_presupuesto = (costo_horizonte / presupuesto del USER_PROMPT) * 100
-  dentro_presupuesto     = costo_horizonte <= presupuesto
-  ahorro_estimado_usd NUNCA puede ser mayor que costo_mensual * 0.30
+  dentro_presupuesto = costo_horizonte <= presupuesto
+  ahorro_estimado_usd NUNCA mayor que costo_mensual * 0.30
   costo_optimizado = costo_mensual - ahorro_estimado_usd
-  costo_optimizado NUNCA puede ser negativo ni cero.
+  costo_optimizado NUNCA negativo ni cero.
   ahorro_alternativa = (costo_mensual - costo_alternativa) * meses
 
   Una fila por recurso con precio distinto en servicios[].
-  servicio_aws: nombre oficial AWS sin sufijos ni descripciones.
-  CORRECTO: "Amazon RDS" | INCORRECTO: "AmazonRDS - MySQL"
+  servicio_aws: nombre oficial AWS sin sufijos.
 
 REFERENCIA DE LICENCIAMIENTO:
   costo_sqlserver_usd      = precio_hora_rds * 730 * 3.0
@@ -229,6 +214,12 @@ CAMPOS ESPECIFICOS:
   - etiquetado_ejemplo: basado unicamente en datos del escenario del USER_PROMPT.
     NUNCA inventes emails, versiones ni centros de costo.
   - Usa execute_cost_calculation para calcular ahorro_estimado_usd.
+  - alternativa_menor_costo.ahorro_estimado es el ahorro TOTAL en el horizonte_tiempo.
+    ahorro_estimado = (costo_mensual - costo_alternativa) * meses
+    ahorro_estimado NUNCA puede ser negativo ni cero.
+    Si no hay alternativa real aplica = false y ahorro_estimado = 0.
+  - well_architected.ahorro_estimado_usd NUNCA puede ser negativo ni cero.
+    Si no hay ahorro real aplica = false y ahorro_estimado_usd = 0.
 
 IMPORTANTE: Responde UNICAMENTE con el siguiente JSON.
 Sin explicaciones, sin markdown, sin texto adicional. Solo el JSON:

@@ -330,13 +330,6 @@ def generar_pdf(data: dict) -> bytes:
         pdf.parrafo(alt.get('descripcion', ''))
         pdf.kv('Ahorro estimado', fmt_usd(alt.get('ahorro_estimado', 0)), InformePDF.VERDE)
 
-    # Analisis de migracion
-    if migracion.get('aplica'):
-        pdf.titulo_seccion('An\xe1lisis de migraci\xf3n')
-        pdf.kv('Costo actual (on-premise)', fmt_usd(migracion.get('costo_actual_estimado_usd', 0)))
-        pdf.kv('Ahorro mensual estimado',   fmt_usd(migracion.get('ahorro_mensual_estimado_usd', 0)), InformePDF.VERDE)
-        pdf.kv('Per\xedodo de retorno',     migracion.get('periodo_retorno_inversion', ''))
-
     # Buenas practicas
     pdf.titulo_seccion('Buenas pr\xe1cticas de gesti\xf3n de costos')
     etiquetas = bp.get('etiquetado_ejemplo', {})
